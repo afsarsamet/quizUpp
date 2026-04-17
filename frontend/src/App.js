@@ -1,16 +1,17 @@
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import Home from "./pages/Home";
+import Join from "./pages/Join";
+import Host from "./pages/Host";
+
 function App() {
   return (
-    <div className="flex flex-col items-center justify-center h-screen gap-4">
-      <h1 className="text-3xl font-bold">QuizUp</h1>
-
-      <button className="bg-blue-500 text-white px-4 py-2 rounded">
-        Quiz Oluştur
-      </button>
-
-      <button className="bg-green-500 text-white px-4 py-2 rounded">
-        Quiz’e Katıl
-      </button>
-    </div>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/join" element={<Join />} />
+        <Route path="/host" element={<Host />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
 
