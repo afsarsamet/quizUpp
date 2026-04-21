@@ -1,38 +1,65 @@
-const express = require("express");
-const cors = require("cors");
-const { Pool } = require("pg");
+require('dotenv').config(); // .env dosyasındaki şifreleri okumak için şart
+const express = require('express');
+const cors = require('cors');
+const { Pool } = require('pg');
 
 const app = express();
-app.use(cors());
-app.use(express.json());
 
+// Middleware (Ara Yazılımlar)
+app.use(cors());
+app.use(express.json()); // React'ten gelen JSON verilerini okuyabilmek için
+
+// Veritabanı Bağlantı Ayarları (.env dosyasından çekiyor)
 const pool = new Pool({
-  user: "postgres",
-  host: "127.0.0.1",
-  database: "postgres",
-  password: "4242",
+ user: "postgres",       
+  host: "localhost",      
+  database: "roomapp",    
+  password:process.env.DB_PASSWORD, 
   port: 5432,
 });
 
-app.get("/", (req, res) => {
-  res.send("Backend çalışıyor");
+// Veritabanı bağlantı testi
+pool.connect((err, client, release) => {
+  if (err) {
+    return console.error('❌ Veritabanı bağlantı hatası:', err.stack);
+  }
+  console.log('🔥 PostgreSQL (Docker) bağlantısı başarılı!');
 });
 
-app.get("/test-db", async (req, res) => {
+// --- API ROTLARI ---
+
+// 1. Ana Sayfa Test Rotası
+app.get("/", (req, res) => {
+  res.send("Backend tıkır tıkır çalışıyor!");
+});
+
+// 2. KAYIT OL (REGISTER) API'si
+app.post('/api/register', async (req, res) => {
+  const { username, email, password } = req.body;
+
   try {
-    const result = await pool.query("SELECT current_database(), NOW()");
-    res.json({
-      message: "PostgreSQL bağlı",
-      data: result.rows[0],
+    // Kullanıcıyı veritabanındaki 'users' tablosuna ekliyoruz
+    const newUser = await pool.query(
+      "INSERT INTO users (username, email, password) VALUES ($1, $2, $3) RETURNING *",
+      [username, email, password]
+    );
+
+    res.status(201).json({
+      message: "Kullanıcı başarıyla kaydedildi!",
+      user: newUser.rows[0]
     });
+    
+    console.log(`✅ Yeni üye: ${username}`);
   } catch (err) {
-    res.status(500).json({
-      message: "DB bağlantı hatası",
-      error: err.message,
+    console.error("Kayıt hatası:", err.message);
+    res.status(500).json({ 
+      error: "Kayıt işlemi başarısız. Bu email veya kullanıcı adı alınmış olabilir." 
     });
   }
 });
 
-app.listen(5000, () => {
-  console.log("Server 5000 portunda çalışıyor");
+// Sunucuyu başlat
+const PORT = 5000;
+app.listen(PORT, () => {
+  console.log(`🚀 Sunucu http://localhost:${PORT} adresinde ayaklandı!`);
 });
