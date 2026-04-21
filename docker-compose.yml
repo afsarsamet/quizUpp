@@ -1,0 +1,10 @@
+services:
+  db:
+    image: postgres:16
+    container_name: postgres_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 6767
+      POSTGRES_DB: roomapp
+    ports:
+      - "5432:5432"
