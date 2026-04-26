@@ -6,12 +6,34 @@ function Login() {
   const [password, setPassword] = useState('');
   const navigate = useNavigate();
 
-  const handleLogin = (e) => {
+ const handleLogin = async (e) => {
     e.preventDefault();
-    console.log("Giriş denemesi:", { email, password });
-    alert("Backend hazır olunca JWT token alınacak!");
-  };
+    
+    try {
+      // Backend'deki giriş yapma kapısını çalıyoruz (login)
+      const response = await fetch('http://localhost:5000/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        // Bu sefer sadece email ve şifre gönderiyoruz
+        body: JSON.stringify({ email, password }),
+      });
 
+      const data = await response.json();
+
+      if (response.ok) {
+        alert("BİNGO! Giriş Başarılı, içeri alındın.");
+        // Giriş başarılıysa adamı anasayfaya (veya quiz oluşturma sayfasına) yönlendir
+        navigate('/'); 
+      } else {
+        alert("Hata: " + (data.message || "E-posta veya şifre yanlış kanka"));
+      }
+    } catch (error) {
+      console.error("Bağlantı hatası:", error);
+      alert("Backend sunucusuna ulaşılamıyor! Mutfağın fişi mi çekik?");
+    }
+  };
   return (
     <div className="flex flex-col items-center justify-center h-screen bg-gray-50 text-gray-800">
       <form onSubmit={handleLogin} className="bg-white p-8 rounded-2xl shadow-xl w-96 border border-gray-100">
