@@ -11,17 +11,18 @@ const server = http.createServer(app);
 app.use(cors());
 app.use(express.json());
 
+// .env dosyasından gelen verilerle DB bağlantısı
 const pool = new Pool({
-  user: "postgres",       
-  host: "localhost",      
-  database: "roomapp",    
-  password: process.env.DB_PASSWORD, 
-  port: 5432,
+  user: process.env.DB_USER,
+  host: process.env.DB_HOST,
+  database: process.env.DB_NAME,
+  password: process.env.DB_PASSWORD,
+  port: process.env.DB_PORT,
 });
 
 pool.connect((err) => {
-  if (err) return console.error('Veritabanı bağlantı hatası:', err.stack);
-  console.log('PostgreSQL (Docker) bağlantısı başarılı!');
+  if (err) return console.error('❌ Veritabanı bağlantı hatası:', err.stack);
+  console.log('🔥 PostgreSQL (Docker) bağlantısı başarılı!');
 });
 
 const io = new Server(server, {
@@ -32,38 +33,39 @@ const io = new Server(server, {
 });
 
 io.on('connection', (socket) => {
-  console.log(`🟢 Yeni bir oyuncu bağlandı: ${socket.id}`);
+  console.log(`🟢 Yeni bağlanan: ${socket.id}`);
 
   socket.on('joinRoom', ({ roomId, username }) => {
     socket.join(roomId); 
     console.log(`📡 [KATILIM] ${username}, ${roomId} odasına girdi.`);
-    socket.to(roomId).emit('userJoined', { username });
+    // Odaya giren herkese güncel kullanıcıyı bildir
+    io.to(roomId).emit('userJoined', { username });
   });
 
   socket.on('startGame', async (roomId) => {
-    console.log("-----------------------------------------");
-    console.log(`🚀 [START] Oyun başlatma isteği: ${roomId}`);
-    console.log("-----------------------------------------");
+    console.log(`🚀 [START] Oyun başlatılıyor: ${roomId}`);
     
     try {
-      // Veritabanından soruyu çek
       const result = await pool.query("SELECT * FROM questions ORDER BY RANDOM() LIMIT 1");
       
       if (result.rows.length > 0) {
         const question = result.rows[0];
         
-        // Önce herkese "Başladı" de, sonra soruyu yolla
+        // ÖNEMLİ: io.to(roomId) kullanarak sinyali HOST DAHİL herkese gönderiyoruz
         io.to(roomId).emit('gameStarted');
         
-        io.to(roomId).emit('nextQuestion', {
-          questionText: question.question_text,
-          options: [question.option_a, question.option_b, question.option_c, question.option_d],
-          correctOptionIndex: question.correct_answer
-        });
-        
-        console.log(`✅ ${roomId} odasına soru gönderildi.`);
+        // React state'inin güncellenmesi için yarım saniye bekle ve soruyu fırlat
+        setTimeout(() => {
+          io.to(roomId).emit('nextQuestion', {
+            questionText: question.question_text,
+            options: [question.option_a, question.option_b, question.option_c, question.option_d],
+            correctOptionIndex: question.correct_answer
+          });
+          console.log(`✅ ${roomId} odasına soru fırlatıldı.`);
+        }, 500);
+
       } else {
-        console.log("⚠️ Veritabanında soru yok!");
+        console.log("⚠️ Veritabanında soru bulunamadı!");
       }
     } catch (err) {
       console.error("❌ DB Hatası:", err);
@@ -76,4 +78,4 @@ io.on('connection', (socket) => {
 });
 
 const PORT = 5000;
-server.listen(PORT, () => console.log(`🚀 Server http://localhost:${PORT}`));
+server.listen(PORT, () => console.log(`🚀 Sunucu http://localhost:${PORT} üzerinde hazır!`));
