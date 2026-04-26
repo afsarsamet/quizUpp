@@ -7,11 +7,34 @@ function Register() {
   const [password, setPassword] = useState('');
   const navigate = useNavigate();
 
-  const handleRegister = (e) => {
+ const handleRegister = async (e) => {
     e.preventDefault();
-    console.log("Kayıt verisi:", { username, email, password });
-    alert("Kayıt başarılı! Şimdi giriş yapabilirsin.");
-    navigate('/login');
+    
+    try {
+      const response = await fetch('http://localhost:5000/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username,
+          email,
+          password
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        alert("Kayıt başarıyla veritabanına eklendi! Şimdi giriş yapabilirsin.");
+        navigate('/login');
+      } else {
+        alert("Hata: " + (data.message || "Kayıt olunamadı"));
+      }
+    } catch (error) {
+      console.error("Bağlantı hatası:", error);
+      alert("Backend sunucusuna ulaşılamıyor! node server.js açık mı?");
+    }
   };
 
   return (

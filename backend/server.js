@@ -34,7 +34,7 @@ app.get("/", (req, res) => {
 });
 
 // 2. KAYIT OL (REGISTER) API'si
-app.post('/api/register', async (req, res) => {
+app.post('/api/auth/register', async (req, res) => {
   const { username, email, password } = req.body;
 
   try {
@@ -57,7 +57,29 @@ app.post('/api/register', async (req, res) => {
     });
   }
 });
+// 3. GİRİŞ YAP (LOGIN) API'si
+app.post('/api/auth/login', async (req, res) => {
+  const { email, password } = req.body;
 
+  try {
+    // Veritabanında bu emaile ve şifreye sahip adam var mı diye bakıyoruz
+    const user = await pool.query(
+      "SELECT * FROM users WHERE email = $1 AND password = $2", 
+      [email, password]
+    );
+
+    if (user.rows.length > 0) {
+      // Eşleşme bulundu, adamı içeri al
+      res.status(200).json({ message: "Giriş başarılı", user: user.rows[0] });
+    } else {
+      // Eşleşme yok, kapıdan çevir
+      res.status(401).json({ message: "E-posta veya şifre hatalı kanka!" });
+    }
+  } catch (err) {
+    console.error("Giriş hatası:", err.message);
+    res.status(500).json({ error: "Sunucu hatası." });
+  }
+});
 // Sunucuyu başlat
 const PORT = 5000;
 app.listen(PORT, () => {
