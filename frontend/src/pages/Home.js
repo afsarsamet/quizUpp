@@ -1,33 +1,117 @@
-import { useNavigate } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 
 function Home() {
   const navigate = useNavigate();
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    const savedUser = localStorage.getItem("quizupp_user");
+
+    if (savedUser) {
+      try {
+        setUser(JSON.parse(savedUser));
+      } catch (error) {
+        console.error("User parse error:", error);
+        localStorage.removeItem("quizupp_user");
+        localStorage.removeItem("quizupp_token");
+      }
+    }
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem("quizupp_user");
+    localStorage.removeItem("quizupp_token");
+    setUser(null);
+    navigate("/");
+  };
+
+  const handleCreateQuiz = () => {
+    if (!user) {
+      navigate("/login");
+      return;
+    }
+
+    navigate("/host");
+  };
+
+  const handleMyQuizzes = () => {
+    if (!user) {
+      navigate("/login");
+      return;
+    }
+
+    navigate("/my-quizzes");
+  };
 
   return (
-    <div className="flex flex-col items-center justify-center h-screen gap-4 bg-gray-50">
-      {/* Giriş Butonlarını Üste Alalım */}
-      <div className="absolute top-4 right-4 flex gap-2">
-        <button onClick={() => navigate("/login")} className="text-blue-500 font-bold border border-blue-500 px-4 py-1 rounded hover:bg-blue-50">Giriş Yap</button>
-        <button onClick={() => navigate("/register")} className="bg-blue-500 text-white px-4 py-1 rounded hover:bg-blue-600">Kayıt Ol</button>
-      </div>
+    <div className="landing-page">
+      <header className="navbar">
+        <Link className="brand" to="/">
+          QuizUpp
+        </Link>
 
-      <h1 className="text-5xl font-extrabold text-blue-600 mb-6">QuizUpp</h1>
+        <div className="navbar-actions">
+          {user ? (
+            <>
+              <Link className="navbar-link" to="/my-quizzes">
+                Quizlerim
+              </Link>
 
-      <div className="flex gap-6">
-        <button
-          onClick={() => navigate("/host")}
-          className="bg-blue-500 text-white px-8 py-4 rounded-xl text-xl font-bold hover:scale-105 transition-transform"
-        >
-          Quiz Oluştur
-        </button>
+              <span className="navbar-user">Merhaba, {user.username}</span>
 
-        <button
-          onClick={() => navigate("/join")}
-          className="bg-green-500 text-white px-8 py-4 rounded-xl text-xl font-bold hover:scale-105 transition-transform"
-        >
-          Quiz’e Katıl
-        </button>
-      </div>
+              <button className="navbar-button logout-button" onClick={handleLogout}>
+                Çıkış Yap
+              </button>
+            </>
+          ) : (
+            <>
+              <Link className="navbar-link" to="/login">
+                Giriş Yap
+              </Link>
+
+              <Link className="navbar-button" to="/register">
+                Kayıt Ol
+              </Link>
+            </>
+          )}
+        </div>
+      </header>
+
+      <main className="landing-main">
+        <div className="hero-card">
+          <p className="hero-badge">Canlı Quiz Oyunu</p>
+
+          <h1>Arkadaşlarınla gerçek zamanlı quiz oyna</h1>
+
+          <p className="hero-description">
+            Oda koduyla oyuna katılabilir, kayıt olmadan yarışabilirsin.
+            Quiz oluşturmak için giriş yapman yeterli.
+          </p>
+
+          <div className="hero-actions">
+            <Link className="join-main-button" to="/join">
+              Oyuna Katıl
+            </Link>
+
+            <button className="create-quiz-button" onClick={handleCreateQuiz}>
+              Quiz Oluştur
+            </button>
+
+            {user && (
+              <button className="my-quizzes-button" onClick={handleMyQuizzes}>
+                Quizlerim
+              </button>
+            )}
+          </div>
+
+          {!user && (
+            <p className="hero-note">
+              Quiz oluşturmak ve kayıtlı quizlerini görmek için giriş yapman gerekir.
+            </p>
+          )}
+        </div>
+      </main>
     </div>
   );
 }

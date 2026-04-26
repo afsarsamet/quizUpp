@@ -1,66 +1,121 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 
 function Login() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const navigate = useNavigate();
 
- const handleLogin = async (e) => {
-    e.preventDefault();
-    
+  const [formData, setFormData] = useState({
+    email: "",
+    password: "",
+  });
+
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+
+  const handleChange = (event) => {
+    const { name, value } = event.target;
+
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+
+    setErrorMessage("");
+    setSuccessMessage("");
+
+    if (!formData.email.trim()) {
+      setErrorMessage("Email zorunludur.");
+      return;
+    }
+
+    if (!formData.password) {
+      setErrorMessage("Şifre zorunludur.");
+      return;
+    }
+
     try {
-      // Backend'deki giriş yapma kapısını çalıyoruz (login)
-      const response = await fetch('http://localhost:5000/api/auth/login', {
-        method: 'POST',
+      setLoading(true);
+
+      const response = await fetch("http://localhost:5000/api/auth/login", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
-        // Bu sefer sadece email ve şifre gönderiyoruz
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({
+          email: formData.email.trim(),
+          password: formData.password,
+        }),
       });
 
       const data = await response.json();
 
-      if (response.ok) {
-        alert("BİNGO! Giriş Başarılı, içeri alındın.");
-        // Giriş başarılıysa adamı anasayfaya (veya quiz oluşturma sayfasına) yönlendir
-        navigate('/'); 
-      } else {
-        alert("Hata: " + (data.message || "E-posta veya şifre yanlış kanka"));
+      if (!response.ok) {
+        setErrorMessage(data.message || "Giriş başarısız.");
+        return;
       }
+
+      localStorage.setItem("quizupp_token", data.token);
+      localStorage.setItem("quizupp_user", JSON.stringify(data.user));
+
+      setSuccessMessage("Giriş başarılı. Yönlendiriliyorsun...");
+
+      setTimeout(() => {
+        navigate("/");
+      }, 800);
     } catch (error) {
-      console.error("Bağlantı hatası:", error);
-      alert("Backend sunucusuna ulaşılamıyor! Mutfağın fişi mi çekik?");
+      console.error("Login request error:", error);
+      setErrorMessage("Backend sunucusuna ulaşılamıyor.");
+    } finally {
+      setLoading(false);
     }
   };
+
   return (
-    <div className="flex flex-col items-center justify-center h-screen bg-gray-50 text-gray-800">
-      <form onSubmit={handleLogin} className="bg-white p-8 rounded-2xl shadow-xl w-96 border border-gray-100">
-        <h2 className="text-3xl font-extrabold mb-6 text-center text-blue-600">Tekrar Hoş Geldin</h2>
-        <div className="space-y-4">
-          <input 
-            type="email" 
-            placeholder="E-posta" 
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-            onChange={(e) => setEmail(e.target.value)}
-            required
+    <div className="auth-page">
+      <div className="auth-card">
+        <h1>QuizUpp</h1>
+        <h2>Giriş Yap</h2>
+
+        {errorMessage && <div className="alert alert-error">{errorMessage}</div>}
+        {successMessage && (
+          <div className="alert alert-success">{successMessage}</div>
+        )}
+
+        <form onSubmit={handleSubmit}>
+          <label>Email</label>
+          <input
+            type="email"
+            name="email"
+            placeholder="Email adresini gir"
+            value={formData.email}
+            onChange={handleChange}
+            disabled={loading}
           />
-          <input 
-            type="password" 
-            placeholder="Şifre" 
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-            onChange={(e) => setPassword(e.target.value)}
-            required
+
+          <label>Şifre</label>
+          <input
+            type="password"
+            name="password"
+            placeholder="Şifreni gir"
+            value={formData.password}
+            onChange={handleChange}
+            disabled={loading}
           />
-        </div>
-        <button className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold mt-6 hover:bg-blue-700 shadow-lg transition-all active:scale-95">
-          Giriş Yap
-        </button>
-        <p className="mt-6 text-sm text-center text-gray-500">
-          Hesabın yok mu? <span onClick={() => navigate('/register')} className="text-blue-600 font-bold cursor-pointer hover:underline">Kayıt Ol</span>
+
+          <button type="submit" disabled={loading}>
+            {loading ? "Giriş yapılıyor..." : "Giriş Yap"}
+          </button>
+        </form>
+
+        <p>
+          Hesabın yok mu? <Link to="/register">Kayıt ol</Link>
         </p>
-      </form>
+      </div>
     </div>
   );
 }

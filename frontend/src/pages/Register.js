@@ -1,76 +1,138 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 
 function Register() {
-  const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const navigate = useNavigate();
 
- const handleRegister = async (e) => {
-    e.preventDefault();
-    
+  const [formData, setFormData] = useState({
+    username: "",
+    email: "",
+    password: "",
+  });
+
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+
+  const handleChange = (event) => {
+    const { name, value } = event.target;
+
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+
+    setErrorMessage("");
+    setSuccessMessage("");
+
+    if (!formData.username.trim()) {
+      setErrorMessage("Kullanıcı adı zorunludur.");
+      return;
+    }
+
+    if (!formData.email.trim()) {
+      setErrorMessage("Email zorunludur.");
+      return;
+    }
+
+    if (formData.password.length < 6) {
+      setErrorMessage("Şifre en az 6 karakter olmalıdır.");
+      return;
+    }
+
     try {
-      const response = await fetch('http://localhost:5000/api/auth/register', {
-        method: 'POST',
+      setLoading(true);
+
+      const response = await fetch("http://localhost:5000/api/auth/register", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          username,
-          email,
-          password
+          username: formData.username.trim(),
+          email: formData.email.trim(),
+          password: formData.password,
         }),
       });
 
       const data = await response.json();
 
-      if (response.ok) {
-        alert("Kayıt başarıyla veritabanına eklendi! Şimdi giriş yapabilirsin.");
-        navigate('/login');
-      } else {
-        alert("Hata: " + (data.message || "Kayıt olunamadı"));
+      if (!response.ok) {
+        setErrorMessage(data.message || "Kayıt başarısız.");
+        return;
       }
+
+      localStorage.setItem("quizupp_token", data.token);
+      localStorage.setItem("quizupp_user", JSON.stringify(data.user));
+
+      setSuccessMessage("Kayıt başarılı. Yönlendiriliyorsun...");
+
+      setTimeout(() => {
+        navigate("/");
+      }, 800);
     } catch (error) {
-      console.error("Bağlantı hatası:", error);
-      alert("Backend sunucusuna ulaşılamıyor! node server.js açık mı?");
+      console.error("Register request error:", error);
+      setErrorMessage("Backend sunucusuna ulaşılamıyor.");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="flex flex-col items-center justify-center h-screen bg-gray-50 text-gray-800">
-      <form onSubmit={handleRegister} className="bg-white p-8 rounded-2xl shadow-xl w-96 border border-gray-100">
-        <h2 className="text-3xl font-extrabold mb-6 text-center text-green-600">Yeni Hesap Aç</h2>
-        <div className="space-y-4">
-          <input 
-            type="text" 
-            placeholder="Kullanıcı Adı" 
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none transition-all"
-            onChange={(e) => setUsername(e.target.value)}
-            required
+    <div className="auth-page">
+      <div className="auth-card">
+        <h1>QuizUpp</h1>
+        <h2>Kayıt Ol</h2>
+
+        {errorMessage && <div className="alert alert-error">{errorMessage}</div>}
+        {successMessage && (
+          <div className="alert alert-success">{successMessage}</div>
+        )}
+
+        <form onSubmit={handleSubmit}>
+          <label>Kullanıcı Adı</label>
+          <input
+            type="text"
+            name="username"
+            placeholder="Kullanıcı adını gir"
+            value={formData.username}
+            onChange={handleChange}
+            disabled={loading}
           />
-          <input 
-            type="email" 
-            placeholder="E-posta" 
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none transition-all"
-            onChange={(e) => setEmail(e.target.value)}
-            required
+
+          <label>Email</label>
+          <input
+            type="email"
+            name="email"
+            placeholder="Email adresini gir"
+            value={formData.email}
+            onChange={handleChange}
+            disabled={loading}
           />
-          <input 
-            type="password" 
-            placeholder="Şifre" 
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none transition-all"
-            onChange={(e) => setPassword(e.target.value)}
-            required
+
+          <label>Şifre</label>
+          <input
+            type="password"
+            name="password"
+            placeholder="En az 6 karakter"
+            value={formData.password}
+            onChange={handleChange}
+            disabled={loading}
           />
-        </div>
-        <button className="w-full bg-green-600 text-white py-3 rounded-lg font-bold mt-6 hover:bg-green-700 shadow-lg transition-all active:scale-95">
-          Hesap Oluştur
-        </button>
-        <p className="mt-6 text-sm text-center text-gray-500">
-          Zaten üye misin? <span onClick={() => navigate('/login')} className="text-green-600 font-bold cursor-pointer hover:underline">Giriş Yap</span>
+
+          <button type="submit" disabled={loading}>
+            {loading ? "Kayıt yapılıyor..." : "Kayıt Ol"}
+          </button>
+        </form>
+
+        <p>
+          Zaten hesabın var mı? <Link to="/login">Giriş yap</Link>
         </p>
-      </form>
+      </div>
     </div>
   );
 }

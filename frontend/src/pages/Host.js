@@ -1,126 +1,327 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom'; // Yönlendirme için
-import { socket } from '../socket'; // Socket bağlantısı için
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
-export default function Host() {
+const emptyQuestion = {
+  questionText: "",
+  options: ["", "", "", ""],
+  correctOptionIndex: 0,
+};
+
+function Host() {
   const navigate = useNavigate();
-  const [quizTitle, setQuizTitle] = useState('');
-  
-  // Soruları ve şıkları tuttuğumuz dizi
-  const [questions, setQuestions] = useState([
-    { questionText: '', options: ['', '', '', ''], correctOptionIndex: 0 }
-  ]);
 
-  // Yeni soru ekleme
-  const addQuestion = () => {
-    setQuestions([
-      ...questions,
-      { questionText: '', options: ['', '', '', ''], correctOptionIndex: 0 }
+  const [title, setTitle] = useState("");
+  const [timerSeconds, setTimerSeconds] = useState(20);
+  const [questions, setQuestions] = useState([{ ...emptyQuestion }]);
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  useEffect(() => {
+    const token = localStorage.getItem("quizupp_token");
+
+    if (!token) {
+      navigate("/login");
+    }
+  }, [navigate]);
+
+  const handleTitleChange = (event) => {
+    setTitle(event.target.value);
+  };
+
+  const handleTimerChange = (event) => {
+    setTimerSeconds(event.target.value);
+  };
+
+  const handleQuestionTextChange = (questionIndex, value) => {
+    setQuestions((prevQuestions) =>
+      prevQuestions.map((question, index) =>
+        index === questionIndex
+          ? {
+              ...question,
+              questionText: value,
+            }
+          : question
+      )
+    );
+  };
+
+  const handleOptionChange = (questionIndex, optionIndex, value) => {
+    setQuestions((prevQuestions) =>
+      prevQuestions.map((question, index) => {
+        if (index !== questionIndex) {
+          return question;
+        }
+
+        const updatedOptions = [...question.options];
+        updatedOptions[optionIndex] = value;
+
+        return {
+          ...question,
+          options: updatedOptions,
+        };
+      })
+    );
+  };
+
+  const handleCorrectOptionChange = (questionIndex, optionIndex) => {
+    setQuestions((prevQuestions) =>
+      prevQuestions.map((question, index) =>
+        index === questionIndex
+          ? {
+              ...question,
+              correctOptionIndex: optionIndex,
+            }
+          : question
+      )
+    );
+  };
+
+  const handleAddQuestion = () => {
+    setQuestions((prevQuestions) => [
+      ...prevQuestions,
+      {
+        questionText: "",
+        options: ["", "", "", ""],
+        correctOptionIndex: 0,
+      },
     ]);
   };
 
-  // State güncelleyici
-  const handleQuestionChange = (index, field, value, optionIndex = null) => {
-    const updatedQuestions = [...questions];
-    if (field === 'questionText') {
-      updatedQuestions[index].questionText = value;
-    } else if (field === 'option') {
-      updatedQuestions[index].options[optionIndex] = value;
-    } else if (field === 'correctOption') {
-      updatedQuestions[index].correctOptionIndex = value;
+  const handleRemoveQuestion = (questionIndex) => {
+    if (questions.length === 1) {
+      setErrorMessage("En az 1 soru olmalı.");
+      return;
     }
-    setQuestions(updatedQuestions);
+
+    setQuestions((prevQuestions) =>
+      prevQuestions.filter((_, index) => index !== questionIndex)
+    );
   };
 
-  // ASIL OLAY BURASI: Kaydet ve Odayı Kur
-  const handleSaveQuiz = () => {
-    if (!quizTitle || questions[0].questionText === '') {
-      return alert("Kanka önce başlığı ve en az bir soruyu doldur!");
+  const validateForm = () => {
+    if (!title.trim()) {
+      return "Quiz başlığı zorunludur.";
     }
 
-    const quizData = { title: quizTitle, questions };
-    console.log("Backend'e gidecek veri:", quizData);
+    const cleanTimerSeconds = Number(timerSeconds);
 
-    // 1. Rastgele bir Oda Kodu oluştur (Şimdilik manuel, ilerde DB'den gelir)
-    const generatedRoomCode = Math.floor(1000 + Math.random() * 9000).toString();
+    if (Number.isNaN(cleanTimerSeconds)) {
+      return "Soru süresi sayı olmalıdır.";
+    }
 
-    // 2. Socket ile Backend'e "Ben Host olarak bu odayı açtım" diyoruz
-    socket.emit("joinRoom", { roomId: generatedRoomCode, username: "HOST-ADMIN" });
+    if (cleanTimerSeconds < 5) {
+      return "Soru süresi en az 5 saniye olmalıdır.";
+    }
 
-    // 3. Seni Game.js sayfasına 'isHost: true' olarak uçuruyoruz
-    // 'questions' verisini de yanımıza alıyoruz ki oyun başlayınca dağıtalım
-    navigate("/game", { 
-      state: { 
-        roomCode: generatedRoomCode, 
-        name: "Admin", 
-        isHost: true,
-        quizData: quizData // Soruları buraya paketledik
-      } 
-    });
+    if (cleanTimerSeconds > 120) {
+      return "Soru süresi en fazla 120 saniye olabilir.";
+    }
+
+    for (let i = 0; i < questions.length; i += 1) {
+      const question = questions[i];
+
+      if (!question.questionText.trim()) {
+        return `${i + 1}. sorunun metni boş olamaz.`;
+      }
+
+      for (let j = 0; j < question.options.length; j += 1) {
+        if (!question.options[j].trim()) {
+          return `${i + 1}. sorunun ${j + 1}. seçeneği boş olamaz.`;
+        }
+      }
+    }
+
+    return null;
+  };
+
+  const handleCreateQuiz = async (event) => {
+    event.preventDefault();
+
+    setErrorMessage("");
+
+    const validationError = validateForm();
+
+    if (validationError) {
+      setErrorMessage(validationError);
+      return;
+    }
+
+    const token = localStorage.getItem("quizupp_token");
+    const savedUser = localStorage.getItem("quizupp_user");
+
+    if (!token) {
+      navigate("/login");
+      return;
+    }
+
+    let user = null;
+
+    try {
+      user = savedUser ? JSON.parse(savedUser) : null;
+    } catch (error) {
+      console.error("User parse error:", error);
+    }
+
+    try {
+      setLoading(true);
+
+      const response = await fetch("http://localhost:5000/api/quizzes", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          title: title.trim(),
+          timerSeconds: Number(timerSeconds),
+          questions: questions.map((question) => ({
+            questionText: question.questionText.trim(),
+            options: question.options.map((option) => option.trim()),
+            correctOptionIndex: question.correctOptionIndex,
+          })),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setErrorMessage(data.message || "Quiz oluşturulamadı.");
+        return;
+      }
+
+      navigate("/game", {
+        state: {
+          roomCode: data.roomCode,
+          username: user?.username || "Host",
+          isHost: true,
+          quizTitle: title.trim(),
+        },
+      });
+    } catch (error) {
+      console.error("Create quiz error:", error);
+      setErrorMessage("Backend sunucusuna ulaşılamıyor.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="max-w-3xl mx-auto p-6 font-sans">
-      <h1 className="text-3xl font-bold text-center mb-8 text-gray-800">Quiz Oluştur</h1>
-      
-      <div className="mb-6">
-        <input 
-          type="text" 
-          placeholder="Quiz Başlığı (Örn: React Temelleri)" 
-          value={quizTitle}
-          onChange={(e) => setQuizTitle(e.target.value)}
-          className="w-full p-4 text-lg border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-      </div>
+    <div className="page">
+      <div className="form-card wide-card">
+        <h1>QuizUpp</h1>
+        <h2>Quiz Oluştur</h2>
 
-      {questions.map((q, qIndex) => (
-        <div key={qIndex} className="bg-gray-50 border border-gray-200 rounded-xl p-6 mb-6 shadow-sm">
-          <h3 className="text-lg font-bold text-gray-700 mb-4">Soru {qIndex + 1}</h3>
-          
-          <input 
-            type="text" 
-            placeholder="Soru metnini girin..." 
-            value={q.questionText}
-            onChange={(e) => handleQuestionChange(qIndex, 'questionText', e.target.value)}
-            className="w-full p-3 mb-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        {errorMessage && <div className="alert alert-error">{errorMessage}</div>}
+
+        <form onSubmit={handleCreateQuiz}>
+          <label>Quiz Başlığı</label>
+          <input
+            type="text"
+            placeholder="Örn: Genel Kültür Quiz"
+            value={title}
+            onChange={handleTitleChange}
+            disabled={loading}
           />
 
-          {q.options.map((opt, optIndex) => (
-            <div key={optIndex} className="flex items-center mb-3">
-              <input 
-                type="radio" 
-                name={`correctOption-${qIndex}`} 
-                checked={q.correctOptionIndex === optIndex}
-                onChange={() => handleQuestionChange(qIndex, 'correctOption', optIndex)}
-                className="w-5 h-5 text-blue-600 cursor-pointer"
+          <label>Soru Süresi</label>
+          <select
+            value={timerSeconds}
+            onChange={handleTimerChange}
+            disabled={loading}
+          >
+            <option value={5}>5 saniye</option>
+            <option value={10}>10 saniye</option>
+            <option value={15}>15 saniye</option>
+            <option value={20}>20 saniye</option>
+            <option value={30}>30 saniye</option>
+            <option value={45}>45 saniye</option>
+            <option value={60}>60 saniye</option>
+            <option value={90}>90 saniye</option>
+            <option value={120}>120 saniye</option>
+          </select>
+
+          {questions.map((question, questionIndex) => (
+            <div className="question-box" key={questionIndex}>
+              <div className="question-header">
+                <h3>Soru {questionIndex + 1}</h3>
+
+                {questions.length > 1 && (
+                  <button
+                    type="button"
+                    className="small-danger-button"
+                    onClick={() => handleRemoveQuestion(questionIndex)}
+                    disabled={loading}
+                  >
+                    Sil
+                  </button>
+                )}
+              </div>
+
+              <label>Soru Metni</label>
+              <input
+                type="text"
+                placeholder="Sorunu yaz"
+                value={question.questionText}
+                onChange={(event) =>
+                  handleQuestionTextChange(questionIndex, event.target.value)
+                }
+                disabled={loading}
               />
-              <input 
-                type="text" 
-                placeholder={`${optIndex + 1}. Şık`} 
-                value={opt}
-                onChange={(e) => handleQuestionChange(qIndex, 'option', e.target.value, optIndex)}
-                className="ml-3 flex-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+
+              <div className="spacer" />
+
+              <label>Seçenekler</label>
+
+              {question.options.map((option, optionIndex) => (
+                <div className="option-row" key={optionIndex}>
+                  <input
+                    type="radio"
+                    name={`correct-option-${questionIndex}`}
+                    checked={question.correctOptionIndex === optionIndex}
+                    onChange={() =>
+                      handleCorrectOptionChange(questionIndex, optionIndex)
+                    }
+                    disabled={loading}
+                  />
+
+                  <input
+                    type="text"
+                    placeholder={`${optionIndex + 1}. seçenek`}
+                    value={option}
+                    onChange={(event) =>
+                      handleOptionChange(
+                        questionIndex,
+                        optionIndex,
+                        event.target.value
+                      )
+                    }
+                    disabled={loading}
+                  />
+                </div>
+              ))}
+
+              <p className="helper-text">
+                İşaretli olan seçenek doğru cevap olarak kaydedilir.
+              </p>
             </div>
           ))}
-        </div>
-      ))}
 
-      <div className="flex justify-between mt-8">
-        <button 
-          onClick={addQuestion} 
-          className="px-6 py-2 border-2 border-blue-500 text-blue-500 font-bold rounded-lg hover:bg-blue-50 transition-colors"
-        >
-          + Yeni Soru Ekle
-        </button>
-        
-        <button 
-          onClick={handleSaveQuiz} 
-          className="px-6 py-2 bg-green-500 text-white font-bold rounded-lg hover:bg-green-600 transition-colors shadow-md"
-        >
-          Quizi Kaydet ve Odayı Kur
-        </button>
+          <button
+            type="button"
+            className="secondary-form-button"
+            onClick={handleAddQuestion}
+            disabled={loading}
+          >
+            Yeni Soru Ekle
+          </button>
+
+          <button type="submit" disabled={loading}>
+            {loading ? "Quiz oluşturuluyor..." : "Quiz Oluştur ve Odayı Aç"}
+          </button>
+        </form>
       </div>
     </div>
   );
 }
+
+export default Host;

@@ -1,53 +1,107 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom"; // Sayfa değiştirmek için
-import { socket } from "../socket"; // Socket bağlantımızın olduğu dosya
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 function Join() {
+  const navigate = useNavigate();
+
   const [roomCode, setRoomCode] = useState("");
-  const [name, setName] = useState("");
-  const navigate = useNavigate(); // Yönlendirme fonksiyonu
+  const [username, setUsername] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
-  const handleJoin = () => {
-    if (roomCode !== "" && name !== "") {
-      // 1. Sunucuya "Ben bu odaya girdim" haberini gönderiyoruz
-      socket.emit("joinRoom", { roomId: roomCode, username: name });
+  useEffect(() => {
+    const savedUser = localStorage.getItem("quizupp_user");
 
-      // 2. Kullanıcıyı /game sayfasına yönlendiriyoruz
-      // 'state' içinde verileri gönderiyoruz ki diğer sayfada 'arda' ve '123' bilgilerini okuyabilelim
-      navigate("/game", { state: { roomCode, name, isHost: false } });
-      
-      console.log("Bağlantı isteği gönderildi ve yönlendiriliyor...");
-    } else {
-      alert("Kanka oda kodunu ve ismini yazmayı unutma!");
+    if (savedUser) {
+      try {
+        const user = JSON.parse(savedUser);
+        setUsername(user.username || "");
+      } catch (error) {
+        console.error("User parse error:", error);
+      }
+    }
+  }, []);
+
+  const handleJoinRoom = async (event) => {
+    event.preventDefault();
+
+    setErrorMessage("");
+
+    const cleanRoomCode = roomCode.trim();
+    const cleanUsername = username.trim();
+
+    if (!cleanRoomCode) {
+      setErrorMessage("Oda kodu zorunludur.");
+      return;
+    }
+
+    if (!cleanUsername) {
+      setErrorMessage("Kullanıcı adı zorunludur.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const response = await fetch(
+        `http://localhost:5000/api/rooms/${cleanRoomCode}`
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setErrorMessage(data.message || "Oda bulunamadı.");
+        return;
+      }
+
+      navigate("/game", {
+        state: {
+          roomCode: data.roomCode,
+          username: cleanUsername,
+          isHost: false,
+          quizTitle: data.title,
+        },
+      });
+    } catch (error) {
+      console.error("Join room error:", error);
+      setErrorMessage("Backend sunucusuna ulaşılamıyor.");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="flex flex-col items-center justify-center h-screen gap-4">
-      <h1 className="text-2xl font-bold">Quiz'e Katıl</h1>
+    <div className="page">
+      <div className="form-card">
+        <h1>QuizUpp</h1>
+        <h2>Oyuna Katıl</h2>
 
-      <input
-        type="text"
-        placeholder="Oda Kodu"
-        className="border p-2 rounded"
-        value={roomCode}
-        onChange={(e) => setRoomCode(e.target.value)}
-      />
+        {errorMessage && <div className="alert alert-error">{errorMessage}</div>}
 
-      <input
-        type="text"
-        placeholder="İsmin"
-        className="border p-2 rounded"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-      />
+        <form onSubmit={handleJoinRoom}>
+          <label>Oda Kodu</label>
+          <input
+            type="text"
+            placeholder="Örn: 123456"
+            value={roomCode}
+            onChange={(event) => setRoomCode(event.target.value)}
+            disabled={loading}
+          />
 
-      <button 
-        className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition-colors"
-        onClick={handleJoin}
-      >
-        Katıl
-      </button>
+          <label>Kullanıcı Adı</label>
+          <input
+            type="text"
+            placeholder="Oyunda görünecek adın"
+            value={username}
+            onChange={(event) => setUsername(event.target.value)}
+            disabled={loading}
+          />
+
+          <button type="submit" disabled={loading}>
+            {loading ? "Odaya giriliyor..." : "Oyuna Katıl"}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }
