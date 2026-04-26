@@ -1,62 +1,75 @@
-require('dotenv').config(); // .env dosyasındaki şifreleri okumak için şart
+require('dotenv').config(); 
 const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
-
-// 1. HTTP ve Socket.io'yu içeri alıyoruz
 const http = require('http');
 const { Server } = require('socket.io');
 
 const app = express();
-
-// 2. Express'i HTTP server içine sarıyoruz
 const server = http.createServer(app);
 
-// Middleware (Ara Yazılımlar)
 app.use(cors());
-app.use(express.json()); // React'ten gelen JSON verilerini okuyabilmek için
+app.use(express.json());
 
-// Veritabanı Bağlantı Ayarları (.env dosyasından çekiyor)
+// .env dosyasından gelen verilerle DB bağlantısı
 const pool = new Pool({
-  user: "postgres",       
-  host: "localhost",      
-  database: "roomapp",    
-  password: process.env.DB_PASSWORD, 
-  port: 5432,
+  user: process.env.DB_USER,
+  host: process.env.DB_HOST,
+  database: process.env.DB_NAME,
+  password: process.env.DB_PASSWORD,
+  port: process.env.DB_PORT,
 });
 
-// Veritabanı bağlantı testi
-pool.connect((err, client, release) => {
-  if (err) {
-    return console.error('❌ Veritabanı bağlantı hatası:', err.stack);
-  }
+pool.connect((err) => {
+  if (err) return console.error('❌ Veritabanı bağlantı hatası:', err.stack);
   console.log('🔥 PostgreSQL (Docker) bağlantısı başarılı!');
 });
 
-// 3. Socket.IO'yu ayağa kaldırıyoruz (CORS ayarlarıyla birlikte)
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:3000", // DİKKAT: React genelde 3000 portunda çalışır (Eğer Vite kullanıyorsan burayı http://localhost:5173 yap)
+    origin: "http://localhost:3000",
     methods: ["GET", "POST"]
   }
 });
 
-// 4. Socket.IO Olayları (Bağlantı, odaya girme, cevap verme vs.)
 io.on('connection', (socket) => {
-  console.log(`🟢 Yeni bir oyuncu bağlandı: ${socket.id}`);
+  console.log(`🟢 Yeni bağlanan: ${socket.id}`);
 
-  // Oyuncuyu belirli bir odaya (quiz PIN) alma
-  socket.on('join_room', (roomCode) => {
-    socket.join(roomCode);
-    console.log(`${socket.id} kullanıcısı ${roomCode} odasına katıldı.`);
+  socket.on('joinRoom', ({ roomId, username }) => {
+    socket.join(roomId); 
+    console.log(`📡 [KATILIM] ${username}, ${roomId} odasına girdi.`);
+    // Odaya giren herkese güncel kullanıcıyı bildir
+    io.to(roomId).emit('userJoined', { username });
   });
 
-  // Biri cevap gönderdiğinde
-  socket.on('submit_answer', (data) => {
-    console.log(`Cevap geldi: ${data.answer} (Oda: ${data.room})`);
+  socket.on('startGame', async (roomId) => {
+    console.log(`🚀 [START] Oyun başlatılıyor: ${roomId}`);
     
-    // Cevabı odadaki diğer herkese gönder (Liderlik tablosu vs. için)
-    io.to(data.room).emit('receive_answer', data);
+    try {
+      const result = await pool.query("SELECT * FROM questions ORDER BY RANDOM() LIMIT 1");
+      
+      if (result.rows.length > 0) {
+        const question = result.rows[0];
+        
+        // ÖNEMLİ: io.to(roomId) kullanarak sinyali HOST DAHİL herkese gönderiyoruz
+        io.to(roomId).emit('gameStarted');
+        
+        // React state'inin güncellenmesi için yarım saniye bekle ve soruyu fırlat
+        setTimeout(() => {
+          io.to(roomId).emit('nextQuestion', {
+            questionText: question.question_text,
+            options: [question.option_a, question.option_b, question.option_c, question.option_d],
+            correctOptionIndex: question.correct_answer
+          });
+          console.log(`✅ ${roomId} odasına soru fırlatıldı.`);
+        }, 500);
+
+      } else {
+        console.log("⚠️ Veritabanında soru bulunamadı!");
+      }
+    } catch (err) {
+      console.error("❌ DB Hatası:", err);
+    }
   });
 
   socket.on('disconnect', () => {
@@ -64,60 +77,5 @@ io.on('connection', (socket) => {
   });
 });
 
-// --- API ROTLARI ---
-
-// 1. Ana Sayfa Test Rotası
-app.get("/", (req, res) => {
-  res.send("Backend tıkır tıkır çalışıyor!");
-});
-
-// 2. KAYIT OL (REGISTER) API'si
-app.post('/api/auth/register', async (req, res) => {
-  const { username, email, password } = req.body;
-
-  try {
-    const newUser = await pool.query(
-      "INSERT INTO users (username, email, password) VALUES ($1, $2, $3) RETURNING *",
-      [username, email, password]
-    );
-
-    res.status(201).json({
-      message: "Kullanıcı başarıyla kaydedildi!",
-      user: newUser.rows[0]
-    });
-    
-    console.log(`✅ Yeni üye: ${username}`);
-  } catch (err) {
-    console.error("Kayıt hatası:", err.message);
-    res.status(500).json({ 
-      error: "Kayıt işlemi başarısız. Bu email veya kullanıcı adı alınmış olabilir." 
-    });
-  }
-});
-// 3. GİRİŞ YAP (LOGIN) API'si
-app.post('/api/auth/login', async (req, res) => {
-  const { email, password } = req.body;
-
-  try {
-    // Veritabanında bu emaile ve şifreye sahip adam var mı diye bakıyoruz
-    const user = await pool.query(
-      "SELECT * FROM users WHERE email = $1 AND password = $2", 
-      [email, password]
-    );
-
-    if (user.rows.length > 0) {
-      // Eşleşme bulundu, adamı içeri al
-      res.status(200).json({ message: "Giriş başarılı", user: user.rows[0] });
-    } else {
-      // Eşleşme yok, kapıdan çevir
-      res.status(401).json({ message: "E-posta veya şifre hatalı kanka!" });
-    }
-  } catch (err) {
-    console.error("Giriş hatası:", err.message);
-    res.status(500).json({ error: "Sunucu hatası." });
-  }
-});
 const PORT = 5000;
-server.listen(PORT, () => {
-  console.log(`🚀 Sunucu http://localhost:${PORT} adresinde ayaklandı!`);
-});
+server.listen(PORT, () => console.log(`🚀 Sunucu http://localhost:${PORT} üzerinde hazır!`));
