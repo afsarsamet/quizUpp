@@ -1,6 +1,6 @@
-# QuizUpp 🎮
+# quizUpp 
 
-QuizUpp, kullanıcıların kendi quizlerini oluşturup arkadaşlarıyla gerçek zamanlı olarak oynayabildiği canlı quiz uygulamasıdır. Kullanıcılar kayıt olup quiz oluşturabilir, oluşturdukları quizleri daha sonra tekrar kullanabilir ve oda kodu paylaşarak arkadaşlarını oyuna davet edebilir.
+quizUpp, kullanıcıların kendi quizlerini oluşturup arkadaşlarıyla gerçek zamanlı olarak oynayabildiği canlı quiz uygulamasıdır. Kullanıcılar kayıt olup quiz oluşturabilir, oluşturdukları quizleri daha sonra tekrar kullanabilir ve oda kodu paylaşarak arkadaşlarını oyuna davet edebilir.
 
 Oyuncular kayıt olmadan sadece oda kodu ve kullanıcı adı girerek oyuna katılabilir. Host ise quiz oluşturur, odayı açar ve oyunu başlatır. Sorular süreli şekilde gelir, oyuncular cevap verir ve doğru cevaba göre puan kazanır.
 
@@ -12,16 +12,7 @@ Oyuncular kayıt olmadan sadece oda kodu ve kullanıcı adı girerek oyuna katı
 - [Öne Çıkan Özellikler](#öne-çıkan-özellikler)
 - [Ekran Görüntüleri](#ekran-görüntüleri)
 - [Kullanılan Teknolojiler](#kullanılan-teknolojiler)
-- [Proje Yapısı](#proje-yapısı)
-- [Kurulum](#kurulum)
-- [Docker ile Çalıştırma](#docker-ile-çalıştırma)
-- [Manuel Çalıştırma](#manuel-çalıştırma)
-- [Veritabanı Yapısı](#veritabanı-yapısı)
-- [API Endpointleri](#api-endpointleri)
-- [Socket.io Eventleri](#socketio-eventleri)
-- [Oyun Akışı](#oyun-akışı)
-- [Geliştirme Notları](#geliştirme-notları)
-- [Gelecekte Eklenebilecek Özellikler](#gelecekte-eklenebilecek-özellikler)
+
 
 ---
 
