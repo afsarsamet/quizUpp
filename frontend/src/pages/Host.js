@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { BACKEND_URL } from "../config";
 
 const emptyQuestion = {
   questionText: "",
@@ -16,13 +17,61 @@ function Host() {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
+  const [readyQuizzes, setReadyQuizzes] = useState([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
+  const [templateSuccessMsg, setTemplateSuccessMsg] = useState("");
+
   useEffect(() => {
     const token = localStorage.getItem("quizupp_token");
 
     if (!token) {
       navigate("/login");
+      return;
     }
+
+    const fetchTemplates = async () => {
+      try {
+        const response = await fetch(`${BACKEND_URL}/api/ready-quizzes`);
+        const data = await response.json();
+        if (response.ok) {
+          setReadyQuizzes(data.quizzes || []);
+        }
+      } catch (error) {
+        console.error("Error fetching templates:", error);
+      }
+    };
+
+    fetchTemplates();
   }, [navigate]);
+
+  const handleApplyTemplateById = (templateId) => {
+    const selectedQuiz = readyQuizzes.find((q) => q.id === templateId);
+    if (!selectedQuiz) return;
+
+    setTitle(selectedQuiz.title);
+    setTimerSeconds(selectedQuiz.timerSeconds);
+    
+    const formattedQuestions = selectedQuiz.questions.map((q) => ({
+      questionText: q.questionText,
+      options: [...q.options],
+      correctOptionIndex: q.correctOptionIndex,
+    }));
+    
+    setQuestions(formattedQuestions);
+    setTemplateSuccessMsg(`"${selectedQuiz.title}" şablonu başarıyla uygulandı! ${formattedQuestions.length} soru yüklendi.`);
+    setErrorMessage("");
+    
+    setTimeout(() => {
+      const titleElement = document.getElementById("quiz-title-input");
+      if (titleElement) {
+        titleElement.scrollIntoView({ behavior: "smooth" });
+      }
+    }, 100);
+
+    setTimeout(() => {
+      setTemplateSuccessMsg("");
+    }, 5000);
+  };
 
   const handleTitleChange = (event) => {
     setTitle(event.target.value);
@@ -165,7 +214,7 @@ function Host() {
     try {
       setLoading(true);
 
-      const response = await fetch("http://localhost:5000/api/quizzes", {
+      const response = await fetch(`${BACKEND_URL}/api/quizzes`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -212,10 +261,55 @@ function Host() {
         <h2>Quiz Oluştur</h2>
 
         {errorMessage && <div className="alert alert-error">{errorMessage}</div>}
+        {templateSuccessMsg && <div className="alert alert-success">{templateSuccessMsg}</div>}
+
+        {readyQuizzes.length > 0 && (
+          <div className="template-loader-section">
+            <label className="template-loader-label">✨ Hazır Konu Şablonu Seçin</label>
+            <p className="template-loader-helper" style={{ marginBottom: "16px", fontSize: "13.5px" }}>
+              Aşağıdaki hazır kategorilerden birini seçerek tüm soruları (20 adet) ve süre ayarlarını anında forma doldurabilir, ardından dilediğin gibi düzenleyebilirsin.
+            </p>
+            <div className="template-cards-grid">
+              {readyQuizzes.map((quiz) => {
+                let gradientClass = "gradient-purple";
+                if (quiz.id === "ready-tarih-cografya") gradientClass = "gradient-orange";
+                if (quiz.id === "ready-spor-dunyasi") gradientClass = "gradient-green";
+                if (quiz.id === "ready-yesilcam-sinema") gradientClass = "gradient-coral";
+                if (quiz.id === "ready-bilim-teknoloji") gradientClass = "gradient-blue";
+                if (quiz.id === "ready-matematik-mantik") gradientClass = "gradient-indigo";
+                if (quiz.id === "ready-gastronomi") gradientClass = "gradient-pink";
+                if (quiz.id === "ready-turk-soz-deyis") gradientClass = "gradient-teal";
+                if (quiz.id === "ready-bosluk-tamamlama") gradientClass = "gradient-cyan";
+                if (quiz.id === "ready-dort-islem") gradientClass = "gradient-crimson";
+                if (quiz.id === "ready-hayvanlar-dunyasi") gradientClass = "gradient-amber";
+                if (quiz.id === "ready-islam-kulturu") gradientClass = "gradient-emerald";
+
+                return (
+                  <div 
+                    key={quiz.id} 
+                    className={`template-card-item ${gradientClass}`}
+                    onClick={() => handleApplyTemplateById(quiz.id)}
+                    style={{ cursor: "pointer" }}
+                  >
+                    <div className="template-card-header">
+                      <span className="template-card-badge">{quiz.category}</span>
+                      <span className="template-card-qcount">{quiz.questions.length} Soru</span>
+                    </div>
+                    <h4>{quiz.title}</h4>
+                    <button type="button" className="template-card-apply-btn">
+                      Bu Şablonu Uygula ⚡
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         <form onSubmit={handleCreateQuiz}>
           <label>Quiz Başlığı</label>
           <input
+            id="quiz-title-input"
             type="text"
             placeholder="Örn: Genel Kültür Quiz"
             value={title}

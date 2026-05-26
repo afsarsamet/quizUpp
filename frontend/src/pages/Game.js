@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { io } from "socket.io-client";
+import { BACKEND_URL } from "../config";
 
 const colors = ["bg-red-500", "bg-blue-500", "bg-yellow-500", "bg-green-500"];
 
@@ -8,20 +9,20 @@ function Game() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const {
-    roomCode,
-    username,
-    isHost = false,
-    quizTitle = "",
-  } = location.state || {};
+  // Retrieve state or fallback to sessionStorage
+  const roomCode = location.state?.roomCode || sessionStorage.getItem("quizupp_roomCode");
+  const username = location.state?.username || sessionStorage.getItem("quizupp_username");
+  const isHost = location.state?.isHost ?? (sessionStorage.getItem("quizupp_isHost") === "true");
+  const quizTitle = location.state?.quizTitle || sessionStorage.getItem("quizupp_quizTitle") || "";
 
   const socket = useMemo(() => {
-    return io("http://localhost:5000", {
+    return io(BACKEND_URL, {
       autoConnect: false,
     });
   }, []);
 
   const [connected, setConnected] = useState(false);
+  const [pingMs, setPingMs] = useState(null);
   const [roomTitle, setRoomTitle] = useState(quizTitle);
   const [players, setPlayers] = useState([]);
 
@@ -38,6 +39,165 @@ function Game() {
   const [remainingSeconds, setRemainingSeconds] = useState(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [copyMessage, setCopyMessage] = useState("");
+  const [isReadyQuiz, setIsReadyQuiz] = useState(false);
+
+  // Academic A+ Features State
+  const [emotes, setEmotes] = useState([]);
+  const [spentJokers, setSpentJokers] = useState({
+    joker5050: false,
+    jokerDoubleChance: false,
+  });
+  const [hiddenOptions, setHiddenOptions] = useState([]);
+  const [triedOptions, setTriedOptions] = useState([]);
+  const [isMuted, setIsMuted] = useState(() => localStorage.getItem("quizupp_muted") === "true");
+
+  const playSynthSound = (type) => {
+    if (localStorage.getItem("quizupp_muted") === "true") return;
+    try {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContext) return;
+      const ctx = new AudioContext();
+
+      if (type === "swoosh") {
+        const bufferSize = ctx.sampleRate * 0.4;
+        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = Math.random() * 2 - 1;
+        }
+        const noise = ctx.createBufferSource();
+        noise.buffer = buffer;
+
+        const filter = ctx.createBiquadFilter();
+        filter.type = "bandpass";
+        filter.Q.value = 8;
+        filter.frequency.setValueAtTime(100, ctx.currentTime);
+        filter.frequency.exponentialRampToValueAtTime(1500, ctx.currentTime + 0.35);
+
+        const gain = ctx.createGain();
+        gain.gain.setValueAtTime(0.35, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.38);
+
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(ctx.destination);
+        noise.start();
+      } else if (type === "correct") {
+        const osc1 = ctx.createOscillator();
+        const osc2 = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc1.type = "sine";
+        osc1.frequency.setValueAtTime(523.25, ctx.currentTime);
+        osc1.frequency.exponentialRampToValueAtTime(1046.5, ctx.currentTime + 0.15);
+
+        osc2.type = "sine";
+        osc2.frequency.setValueAtTime(659.25, ctx.currentTime);
+
+        gain.gain.setValueAtTime(0.4, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.6);
+
+        osc1.connect(gain);
+        osc2.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc1.start();
+        osc2.start();
+        osc1.stop(ctx.currentTime + 0.6);
+        osc2.stop(ctx.currentTime + 0.6);
+      } else if (type === "wrong") {
+        const osc1 = ctx.createOscillator();
+        const osc2 = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc1.type = "sawtooth";
+        osc1.frequency.setValueAtTime(130.81, ctx.currentTime);
+        osc1.frequency.linearRampToValueAtTime(90, ctx.currentTime + 0.4);
+
+        osc2.type = "triangle";
+        osc2.frequency.setValueAtTime(138.59, ctx.currentTime);
+        osc2.frequency.linearRampToValueAtTime(95, ctx.currentTime + 0.4);
+
+        gain.gain.setValueAtTime(0.55, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.45);
+
+        osc1.connect(gain);
+        osc2.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc1.start();
+        osc2.start();
+        osc1.stop(ctx.currentTime + 0.45);
+        osc2.stop(ctx.currentTime + 0.45);
+      } else if (type === "rocket") {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type = "sawtooth";
+        osc.frequency.setValueAtTime(200, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(1600, ctx.currentTime + 0.5);
+
+        const filter = ctx.createBiquadFilter();
+        filter.type = "lowpass";
+        filter.frequency.setValueAtTime(600, ctx.currentTime);
+        filter.frequency.exponentialRampToValueAtTime(2000, ctx.currentTime + 0.5);
+
+        gain.gain.setValueAtTime(0.3, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.55);
+
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start();
+        osc.stop(ctx.currentTime + 0.55);
+      } else if (type === "tick") {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(1800, ctx.currentTime);
+
+        gain.gain.setValueAtTime(0.15, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start();
+        osc.stop(ctx.currentTime + 0.06);
+      } else if (type === "champion") {
+        const playTone = (freq, start, duration) => {
+          const osc = ctx.createOscillator();
+          const g = ctx.createGain();
+          osc.type = "triangle";
+          osc.frequency.setValueAtTime(freq, ctx.currentTime + start);
+          g.gain.setValueAtTime(0, ctx.currentTime + start);
+          g.gain.linearRampToValueAtTime(0.25, ctx.currentTime + start + 0.05);
+          g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + duration);
+          osc.connect(g);
+          g.connect(ctx.destination);
+          osc.start(ctx.currentTime + start);
+          osc.stop(ctx.currentTime + start + duration);
+        };
+        
+        playTone(261.63, 0.0, 0.4); // C4
+        playTone(329.63, 0.15, 0.4); // E4
+        playTone(392.00, 0.3, 0.4); // G4
+        playTone(523.25, 0.45, 0.8); // C5
+        playTone(659.25, 0.45, 0.8); // E5
+        playTone(783.99, 0.45, 0.8); // G5
+      }
+    } catch (err) {
+      console.error("Audio synthesis error:", err);
+    }
+  };
+
+  const handleToggleMute = () => {
+    const nextMuted = !isMuted;
+    setIsMuted(nextMuted);
+    localStorage.setItem("quizupp_muted", String(nextMuted));
+  };
 
   useEffect(() => {
     if (!roomCode || !username) {
@@ -63,14 +223,43 @@ function Game() {
             return;
           }
 
+          // Persist to sessionStorage on successful join
+          sessionStorage.setItem("quizupp_roomCode", roomCode);
+          sessionStorage.setItem("quizupp_username", username);
+          sessionStorage.setItem("quizupp_isHost", String(isHost));
+
           setRoomTitle(response.room.title);
           setGameStarted(Boolean(response.room.isStarted));
+          setIsReadyQuiz(Boolean(response.room.isReadyQuiz));
         }
       );
     });
 
     socket.on("disconnect", () => {
       setConnected(false);
+    });
+
+    // Latency Ping Handshake
+    const pingInterval = setInterval(() => {
+      if (socket.connected) {
+        socket.emit("latencyPing", Date.now());
+      }
+    }, 3000);
+
+    socket.on("latencyPong", (startTime) => {
+      const rtt = Date.now() - Number(startTime);
+      setPingMs(rtt);
+    });
+
+    socket.on("reconnectionState", (state) => {
+      if (state.answered) {
+        setAnswerResult({
+          isCorrect: true, // bypass option selection with correct status
+          score: state.score,
+          pointsGained: 0,
+          reconnected: true,
+        });
+      }
     });
 
     socket.on("roomUpdated", (room) => {
@@ -84,6 +273,9 @@ function Game() {
       setLeaderboard([]);
       setErrorMessage("");
       setCopyMessage("");
+      setSpentJokers({ joker5050: false, jokerDoubleChance: false });
+      setHiddenOptions([]);
+      setTriedOptions([]);
     });
 
     socket.on("nextQuestion", (question) => {
@@ -94,6 +286,9 @@ function Game() {
       setQuestionEndPayload(null);
       setErrorMessage("");
       setCopyMessage("");
+      setHiddenOptions([]);
+      setTriedOptions([]);
+      playSynthSound("swoosh");
     });
 
     socket.on("questionEnded", (payload) => {
@@ -115,6 +310,23 @@ function Game() {
       setErrorMessage("");
       setCopyMessage("");
       setRemainingSeconds(null);
+      playSynthSound("champion");
+    });
+
+    socket.on("receiveEmote", (data) => {
+      const id = Date.now() + Math.random();
+      setEmotes((prev) => [
+        ...prev,
+        {
+          id,
+          username: data.username,
+          emote: data.emote,
+          left: Math.floor(Math.random() * 80) + 10,
+        },
+      ]);
+      setTimeout(() => {
+        setEmotes((prev) => prev.filter((e) => e.id !== id));
+      }, 3000);
     });
 
     socket.on("gameError", (error) => {
@@ -122,13 +334,17 @@ function Game() {
     });
 
     return () => {
+      clearInterval(pingInterval);
       socket.off("connect");
       socket.off("disconnect");
+      socket.off("latencyPong");
+      socket.off("reconnectionState");
       socket.off("roomUpdated");
       socket.off("gameStarted");
       socket.off("nextQuestion");
       socket.off("questionEnded");
       socket.off("gameFinished");
+      socket.off("receiveEmote");
       socket.off("gameError");
       socket.disconnect();
     };
@@ -142,7 +358,16 @@ function Game() {
     const updateRemainingSeconds = () => {
       const remainingMs = currentQuestion.endsAt - Date.now();
       const nextRemainingSeconds = Math.max(0, Math.ceil(remainingMs / 1000));
-      setRemainingSeconds(nextRemainingSeconds);
+      
+      setRemainingSeconds((prev) => {
+        if (prev !== nextRemainingSeconds) {
+          if (nextRemainingSeconds > 0 && nextRemainingSeconds <= 5) {
+            playSynthSound("tick");
+          }
+          return nextRemainingSeconds;
+        }
+        return prev;
+      });
     };
 
     updateRemainingSeconds();
@@ -180,53 +405,92 @@ function Game() {
   };
 
   const handleSelectOption = (optionIndex) => {
-    if (isHost || answerResult || questionEnded) {
+    if ((isHost && !isReadyQuiz) || answerResult || questionEnded || triedOptions.includes(optionIndex)) {
       return;
     }
 
     setSelectedOptionIndex(optionIndex);
-    setErrorMessage("");
-  };
-
-  const handleSubmitAnswer = () => {
-    if (isHost) {
-      setErrorMessage("Host cevap veremez. Host sadece oyunu yönetir.");
-      return;
-    }
-
-    if (questionEnded) {
-      setErrorMessage("Süre bitti. Bu soru artık cevaplanamaz.");
-      return;
-    }
-
-    if (selectedOptionIndex === null) {
-      setErrorMessage("Önce bir seçenek seçmelisin.");
-      return;
-    }
-
     setErrorMessage("");
 
     socket.emit(
       "submitAnswer",
       {
         roomId: roomCode,
-        selectedOptionIndex,
+        selectedOptionIndex: optionIndex,
       },
       (response) => {
         if (!response?.ok) {
           setErrorMessage(response?.message || "Cevap gönderilemedi.");
+          setSelectedOptionIndex(null);
+          return;
+        }
+
+        if (response.doubleChanceTriggered) {
+          playSynthSound("wrong");
+          setErrorMessage(response.message);
+          setTriedOptions((prev) => [...prev, optionIndex]);
+          setSelectedOptionIndex(null);
           return;
         }
 
         setAnswerResult({
-  isCorrect: response.isCorrect,
-  correctOptionIndex: response.correctOptionIndex,
-  score: response.score,
-  pointsGained: response.pointsGained,
-  remainingSeconds: response.remainingSeconds,
-});
+          isCorrect: response.isCorrect,
+          correctOptionIndex: response.correctOptionIndex,
+          score: response.score,
+          pointsGained: response.pointsGained,
+          remainingSeconds: response.remainingSeconds,
+          speedBonus: response.speedBonus,
+        });
+
+        if (response.isCorrect) {
+          if (response.speedBonus > 0) {
+            playSynthSound("rocket");
+            setTimeout(() => playSynthSound("correct"), 200);
+          } else {
+            playSynthSound("correct");
+          }
+        } else {
+          playSynthSound("wrong");
+        }
       }
     );
+  };
+
+  const handleUseJoker5050 = () => {
+    if ((isHost && !isReadyQuiz) || spentJokers.joker5050 || questionEnded || answerResult) return;
+
+    socket.emit("useJoker5050", { roomId: roomCode }, (response) => {
+      if (response && response.ok) {
+        setSpentJokers((prev) => ({ ...prev, joker5050: true }));
+        setHiddenOptions(response.toHide || []);
+      } else {
+        setErrorMessage("Yarı Yarıya jokeri şu an kullanılamaz.");
+      }
+    });
+  };
+
+  const handleUseJokerDoubleChance = () => {
+    if ((isHost && !isReadyQuiz) || spentJokers.jokerDoubleChance || questionEnded || answerResult) return;
+
+    socket.emit("useJokerDoubleChance", { roomId: roomCode }, (response) => {
+      if (response && response.ok) {
+        setSpentJokers((prev) => ({ ...prev, jokerDoubleChance: true }));
+        setErrorMessage("Çift Şans jokerin aktifleşti! Bu soru için yanlış yapsan bile bir hakkın daha olacak!");
+      } else {
+        setErrorMessage("Çift Şans jokeri şu an kullanılamaz.");
+      }
+    });
+  };
+
+  const handleSendEmote = (emote) => {
+    socket.emit("sendEmote", { roomId: roomCode, emote });
+  };
+
+  const handleExitGame = () => {
+    sessionStorage.removeItem("quizupp_roomCode");
+    sessionStorage.removeItem("quizupp_username");
+    sessionStorage.removeItem("quizupp_isHost");
+    sessionStorage.removeItem("quizupp_quizTitle");
   };
 
   const handleFinishGame = () => {
@@ -255,6 +519,10 @@ function Game() {
     const correctOptionIndex = getCorrectOptionIndex();
     const colorClass = colors[optionIndex] || "bg-blue-500";
 
+    if (triedOptions.includes(optionIndex)) {
+      return "quiz-option-button wrong-option";
+    }
+
     if (!answerResult && !questionEnded) {
       return selectedOptionIndex === optionIndex
         ? `quiz-option-button ${colorClass} selected-option`
@@ -275,6 +543,13 @@ function Game() {
     return `quiz-option-button ${colorClass} disabled-option`;
   };
 
+  const getOptionStyle = (optionIndex) => {
+    if (hiddenOptions.includes(optionIndex)) {
+      return { opacity: 0, pointerEvents: "none", visibility: "hidden" };
+    }
+    return {};
+  };
+
   const getTimerClassName = () => {
     if (remainingSeconds === null) {
       return "timer-box";
@@ -291,6 +566,50 @@ function Game() {
     return "timer-box";
   };
 
+  const getLatencyClassName = () => {
+    if (pingMs === null) return "latency-hud ping-unknown";
+    if (pingMs < 50) return "latency-hud ping-good";
+    if (pingMs < 150) return "latency-hud ping-fair";
+    return "latency-hud ping-poor";
+  };
+
+  const renderAnswerDistribution = () => {
+    if (!questionEndPayload || !questionEndPayload.answerDistribution) return null;
+    const distribution = questionEndPayload.answerDistribution;
+    const totalVotes = distribution.reduce((sum, count) => sum + count, 0);
+
+    const labels = ["A", "B", "C", "D"];
+
+    return (
+      <div className="answer-distribution-chart">
+        <h4 className="chart-title">📊 Oy Dağılım Grafiği</h4>
+        {distribution.map((count, index) => {
+          const percentage = totalVotes > 0 ? Math.round((count / totalVotes) * 100) : 0;
+          return (
+            <div key={index} className="chart-row">
+              <span className={`chart-option-badge badge-${index}`}>{labels[index]}</span>
+              <div className="chart-bar-wrapper">
+                <svg width="100%" height="16" className="chart-svg">
+                  <rect width="100%" height="16" rx="8" className="chart-bar-bg" />
+                  <rect 
+                    width={`${percentage}%`} 
+                    height="16" 
+                    rx="8" 
+                    className={`chart-bar-fill fill-${index}`} 
+                    style={{
+                      transition: "width 1s cubic-bezier(0.4, 0, 0.2, 1)"
+                    }}
+                  />
+                </svg>
+              </div>
+              <span className="chart-percentage-text">{count} Oy (%{percentage})</span>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
   if (!roomCode || !username) {
     return null;
   }
@@ -300,7 +619,40 @@ function Game() {
 
   return (
     <div className="page">
+      {/* FLOATING EMOTES CANVAS */}
+      <div className="emotes-floating-canvas">
+        {emotes.map((e) => (
+          <div
+            key={e.id}
+            className="flying-emote"
+            style={{ left: `${e.left}%` }}
+          >
+            <span className="emote-sender">{e.username}</span>
+            <span className="emote-symbol">{e.emote}</span>
+          </div>
+        ))}
+      </div>
+
       <div className="game-card wide-card">
+        {/* UTILITY BAR FOR PING & SOUND */}
+        <div className="game-utility-bar">
+          {connected && pingMs !== null ? (
+            <div className={getLatencyClassName()}>
+              ⚡ Ping: {pingMs}ms
+            </div>
+          ) : (
+            <div className="latency-hud ping-unknown">
+              ⚡ Gecikme Ölçülüyor...
+            </div>
+          )}
+
+          <div className="sound-toggle-container">
+            <button className="sound-toggle-btn" onClick={handleToggleMute}>
+              {isMuted ? "🔇 Ses Kapalı" : "🔊 Ses Açık"}
+            </button>
+          </div>
+        </div>
+
         <h1>QuizUpp</h1>
 
         <div className="game-topbar">
@@ -322,9 +674,14 @@ function Game() {
 
         <h2>{roomTitle || "Quiz Odası"}</h2>
 
-        {isHost && (
+        {isHost && !isReadyQuiz && (
           <p className="host-note">
             Host modundasın. Soruları oyuncular çözer, sen oyunu yönetirsin.
+          </p>
+        )}
+        {isHost && isReadyQuiz && (
+          <p className="host-note" style={{ borderColor: "var(--neon-emerald)", boxShadow: "0 0 10px rgba(16, 185, 129, 0.2)" }}>
+            Host modundasın (Hazır Konu). Oyunu sen yönetiyorsun ama aynı zamanda bir oyuncu olarak sen de soru çözebilirsin! 🎮
           </p>
         )}
 
@@ -403,137 +760,200 @@ function Game() {
         )}
 
         {gameStarted && currentQuestion && (
-          <>
-            <div className="question-box">
-              <div className="question-status-row">
-                <p className="muted-text">
-                  Soru {currentQuestion.questionNumber} /{" "}
-                  {currentQuestion.totalQuestions}
-                </p>
+          <div className="game-grid-layout">
+            {/* SOL KOLON: Soru, Seçenekler, Jokerler ve Oy Dağılımı */}
+            <div className="game-main-column">
+              <div className="question-box">
+                <div className="question-status-row">
+                  <p className="muted-text">
+                    Soru {currentQuestion.questionNumber} /{" "}
+                    {currentQuestion.totalQuestions}
+                  </p>
 
-                <div className={getTimerClassName()}>
-                  {questionEnded
-                    ? "Süre bitti"
-                    : `${remainingSeconds ?? currentQuestion.timerSeconds} sn`}
+                  <div className={getTimerClassName()}>
+                    {questionEnded
+                      ? "Süre bitti"
+                      : `${remainingSeconds ?? currentQuestion.timerSeconds} sn`}
+                  </div>
                 </div>
-              </div>
 
-              <h3>{currentQuestion.questionText}</h3>
+                <h3>{currentQuestion.questionText}</h3>
 
-              <div className="option-list">
-                {currentQuestion.options.map((option, optionIndex) => (
+                <div className="option-list">
+                  {currentQuestion.options.map((option, optionIndex) => (
+                    <button
+                      type="button"
+                      key={`${option}-${optionIndex}`}
+                      className={getOptionClassName(optionIndex)}
+                      onClick={() => handleSelectOption(optionIndex)}
+                      style={getOptionStyle(optionIndex)}
+                      disabled={(isHost && !isReadyQuiz) || Boolean(answerResult) || questionEnded || triedOptions.includes(optionIndex)}
+                    >
+                      {option}
+                    </button>
+                  ))}
+                </div>
+
+                {/* JOKER SISTEMI */}
+                {(!isHost || isReadyQuiz) && (
+                  <div className="jokers-section-container">
+                    <h4 className="jokers-title">🃏 Yarışma Jokerleri</h4>
+                    <div className="jokers-row">
+                      <button
+                        type="button"
+                        className="joker-card-button"
+                        disabled={spentJokers.joker5050 || questionEnded || Boolean(answerResult)}
+                        onClick={handleUseJoker5050}
+                      >
+                        <span className="joker-icon">🌓</span>
+                        <span className="joker-name">%50</span>
+                        <span className="joker-status">{spentJokers.joker5050 ? "Kullanıldı" : "Hazır"}</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="joker-card-button"
+                        disabled={spentJokers.jokerDoubleChance || questionEnded || Boolean(answerResult)}
+                        onClick={handleUseJokerDoubleChance}
+                      >
+                        <span className="joker-icon">🛡️</span>
+                        <span className="joker-name">Çift Şans</span>
+                        <span className="joker-status">{spentJokers.jokerDoubleChance ? "Kullanıldı" : "Hazır"}</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {(!isHost || isReadyQuiz) && answerResult && !questionEnded && (
+                  <div
+                    className={
+                      answerResult.isCorrect
+                        ? "alert alert-success"
+                        : "alert alert-error"
+                    }
+                  >
+                    {answerResult.isCorrect
+                      ? `Doğru cevap! ${
+                          answerResult.speedBonus > 0
+                            ? `🚀 En hızlı cevap bonusu (+${answerResult.speedBonus} KP) kazandın! `
+                            : ""
+                        }+${answerResult.pointsGained} puan aldın. Toplam puanın: ${answerResult.score}`
+                      : "Yanlış cevap! Doğru cevap yeşil renkle işaretlendi."}
+                  </div>
+                )}
+
+                {questionEnded && (
+                  <>
+                    <div className="alert alert-success">
+                      Doğru cevap:{" "}
+                      {currentQuestion.options[questionEndPayload.correctOptionIndex]}
+                    </div>
+
+                    {renderAnswerDistribution()}
+
+                    <div className="next-question-loader">
+                      <div className="next-question-loader-text">
+                        5 Saniye İçinde Yeni Soruya Geçiliyor...
+                      </div>
+                      <div className="next-question-loader-bar-bg">
+                        <div className="next-question-loader-bar-fill" />
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {isHost && (
                   <button
                     type="button"
-                    key={`${option}-${optionIndex}`}
-                    className={getOptionClassName(optionIndex)}
-                    onClick={() => handleSelectOption(optionIndex)}
-                    disabled={isHost || Boolean(answerResult) || questionEnded}
+                    className="danger-button"
+                    onClick={handleFinishGame}
+                    style={{ marginTop: "16px" }}
                   >
-                    {option}
+                    Oyunu Erken Bitir
                   </button>
-                ))}
+                )}
               </div>
-
-              {!isHost && !answerResult && !questionEnded && (
-                <button
-                  className="secondary-form-button"
-                  type="button"
-                  onClick={handleSubmitAnswer}
-                >
-                  Cevabı Gönder
-                </button>
-              )}
-
-              {!isHost && answerResult && !questionEnded && (
-                <div
-                  className={
-                    answerResult.isCorrect
-                      ? "alert alert-success"
-                      : "alert alert-error"
-                  }
-                >
-                  {answerResult.isCorrect
-  ? `Doğru cevap! +${answerResult.pointsGained} puan aldın. Toplam puanın: ${answerResult.score}`
-  : "Yanlış cevap. Süre bitince doğru cevap gösterilecek."}
-                </div>
-              )}
-
-              {questionEnded && (
-                <div className="alert alert-success">
-                  Doğru cevap:{" "}
-                  {currentQuestion.options[questionEndPayload.correctOptionIndex]}
-                </div>
-              )}
-
-              {isHost && questionEnded && (
-                <p className="waiting-text">
-                  Sonraki soruya otomatik geçiliyor...
-                </p>
-              )}
-
-              {!isHost && questionEnded && (
-                <p className="waiting-text">
-                  Sonraki soru için bekleniyor...
-                </p>
-              )}
-
-              {isHost && (
-                <button
-                  type="button"
-                  className="danger-button"
-                  onClick={handleFinishGame}
-                >
-                  Oyunu Erken Bitir
-                </button>
-              )}
             </div>
 
-            <div className="spacer" />
+            {/* SAĞ KOLON: Skorlar ve Emojiler */}
+            <div className="game-sidebar-column">
+              <div className="players-box">
+                <div className="players-header">
+                  <h3>Skorlar</h3>
+                  <span>
+                    {answeredCount}/{playerCount} cevapladı
+                  </span>
+                </div>
 
-            <div className="players-box">
-              <div className="players-header">
-                <h3>Skorlar</h3>
-                <span>
-                  {answeredCount}/{playerCount} cevapladı
-                </span>
+                {players.length === 0 ? (
+                  <p className="muted-text">Oyuncu yok.</p>
+                ) : (
+                  <ul className="player-list">
+                    {players.map((player, index) => (
+                      <li key={`${player.username}-score-${index}`}>
+                        <span>
+                          {player.username}
+                          {player.answered ? " ✅" : ""}
+                        </span>
+                        <strong>{player.score || 0} puan</strong>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
 
-              {players.length === 0 ? (
-                <p className="muted-text">Oyuncu yok.</p>
-              ) : (
-                <ul className="player-list">
-                  {players.map((player, index) => (
-                    <li key={`${player.username}-score-${index}`}>
-                      <span>
-                        {player.username}
-                        {player.answered ? " ✅" : ""}
-                      </span>
-                      <strong>{player.score || 0} puan</strong>
-                    </li>
+              {/* EMOJI REAKSIYON FIŞKIRTICI */}
+              <div className="emotes-bar-container">
+                <span className="emotes-label">Reaksiyon Gönder:</span>
+                <div className="emotes-buttons-row">
+                  {["👍", "🔥", "🎉", "😮", "👑", "💡"].map((emoji) => (
+                    <button
+                      key={emoji}
+                      type="button"
+                      className="emote-btn"
+                      onClick={() => handleSendEmote(emoji)}
+                    >
+                      {emoji}
+                    </button>
                   ))}
-                </ul>
-              )}
+                </div>
+              </div>
             </div>
-          </>
+          </div>
         )}
 
         {gameFinished && (
-          <div className="players-box">
+          <div className="players-box finished-box">
             <h3>Oyun Bitti 🎉</h3>
+
+            {leaderboard.length > 0 && (
+              <div className="champion-card">
+                <div className="crown-icon">👑</div>
+                <h4>Yarışma Şampiyonu</h4>
+                <div className="champion-name">{leaderboard[0].username}</div>
+                <div className="champion-score">{leaderboard[0].score} KP</div>
+                <p className="champion-congrats">Tebrikler! Muhteşem bir yarış çıkardın! 🎉</p>
+              </div>
+            )}
+
+            <div className="spacer" />
 
             {leaderboard.length === 0 ? (
               <p className="muted-text">Skor bulunamadı.</p>
             ) : (
-              <ol className="leaderboard-list">
-                {leaderboard.map((player, index) => (
-                  <li key={`${player.username}-leaderboard-${index}`}>
-                    <span>
-                      {index + 1}. {player.username}
-                    </span>
-                    <strong>{player.score} puan</strong>
-                  </li>
-                ))}
-              </ol>
+              <>
+                <h4 className="leaderboard-title">Yarışma Sıralaması (En İyi 3)</h4>
+                <ol className="leaderboard-list">
+                  {leaderboard.slice(0, 3).map((player, index) => (
+                    <li key={`${player.username}-leaderboard-${index}`}>
+                      <span className="player-rank-info">
+                        <span className="rank-badge">{index + 1}</span>
+                        {player.username}
+                      </span>
+                      <strong>{player.score} puan</strong>
+                    </li>
+                  ))}
+                </ol>
+              </>
             )}
 
             <div className="spacer" />
@@ -548,7 +968,7 @@ function Game() {
 
         <div className="spacer" />
 
-        <Link className="secondary-button" to="/">
+        <Link className="secondary-button" to="/" onClick={handleExitGame}>
           Ana Sayfaya Dön
         </Link>
       </div>

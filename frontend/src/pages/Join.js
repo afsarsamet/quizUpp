@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { BACKEND_URL } from "../config";
 
 function Join() {
   const navigate = useNavigate();
@@ -44,7 +45,7 @@ function Join() {
       setLoading(true);
 
       const response = await fetch(
-        `http://localhost:5000/api/rooms/${cleanRoomCode}`
+        `${BACKEND_URL}/api/rooms/${cleanRoomCode}`
       );
 
       const data = await response.json();

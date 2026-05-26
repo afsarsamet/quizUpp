@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { BACKEND_URL } from "../config";
 
 function MyQuizzes() {
   const navigate = useNavigate();
 
   const [quizzes, setQuizzes] = useState([]);
+  const [readyQuizzes, setReadyQuizzes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [startingQuizId, setStartingQuizId] = useState(null);
   const [errorMessage, setErrorMessage] = useState("");
@@ -17,34 +19,41 @@ function MyQuizzes() {
       return;
     }
 
-    const fetchMyQuizzes = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
         setErrorMessage("");
 
-        const response = await fetch("http://localhost:5000/api/my-quizzes", {
+        // Fetch My Quizzes
+        const response = await fetch(`${BACKEND_URL}/api/my-quizzes`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         });
-
         const data = await response.json();
 
-        if (!response.ok) {
+        if (response.ok) {
+          setQuizzes(data.quizzes || []);
+        } else {
           setErrorMessage(data.message || "Quizler alınamadı.");
-          return;
         }
 
-        setQuizzes(data.quizzes || []);
+        // Fetch Ready Quizzes
+        const readyResponse = await fetch(`${BACKEND_URL}/api/ready-quizzes`);
+        const readyData = await readyResponse.json();
+        if (readyResponse.ok) {
+          setReadyQuizzes(readyData.quizzes || []);
+        }
+
       } catch (error) {
-        console.error("Fetch my quizzes error:", error);
+        console.error("Fetch data error:", error);
         setErrorMessage("Backend sunucusuna ulaşılamıyor.");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchMyQuizzes();
+    fetchData();
   }, [navigate]);
 
   const handleStartRoom = async (quizId) => {
@@ -69,7 +78,7 @@ function MyQuizzes() {
       setErrorMessage("");
 
       const response = await fetch(
-        `http://localhost:5000/api/quizzes/${quizId}/start-room`,
+        `${BACKEND_URL}/api/quizzes/${quizId}/start-room`,
         {
           method: "POST",
           headers: {
@@ -134,43 +143,94 @@ function MyQuizzes() {
         {errorMessage && <div className="alert alert-error">{errorMessage}</div>}
 
         {loading ? (
-          <p className="waiting-text">Quizlerin yükleniyor...</p>
-        ) : quizzes.length === 0 ? (
-          <div className="empty-state">
-            <h3>Henüz kayıtlı quizin yok.</h3>
-            <p>
-              İlk quizini oluşturduğunda burada görünecek. Sonra tek tıkla yeni
-              oda açabileceksin.
-            </p>
-
-            <Link className="primary-button" to="/host">
-              İlk Quizini Oluştur
-            </Link>
-          </div>
+          <p className="waiting-text">Yarışmalar yükleniyor...</p>
         ) : (
-          <div className="quiz-list">
-            {quizzes.map((quiz) => (
-              <div className="quiz-list-card" key={quiz.id}>
-                <div>
-                  <h3>{quiz.title}</h3>
+          <>
+            {readyQuizzes.length > 0 && (
+              <div className="ready-packs-section">
+                <h3 className="section-title">QuizUpp Hazır Yarışmaları 🏆</h3>
+                <p className="section-subtitle">Soru yazmakla uğraşmak istemiyorsan, hazır paketlerden birini seçerek hemen arkadaşlarınla oyna!</p>
+                <div className="ready-packs-grid">
+                  {readyQuizzes.map((pack) => {
+                    let gradientClass = "gradient-purple";
+                    if (pack.id === "ready-tarih-cografya") gradientClass = "gradient-orange";
+                    if (pack.id === "ready-spor-dunyasi") gradientClass = "gradient-green";
+                    if (pack.id === "ready-yesilcam-sinema") gradientClass = "gradient-coral";
+                    if (pack.id === "ready-bilim-teknoloji") gradientClass = "gradient-blue";
+                    if (pack.id === "ready-matematik-mantik") gradientClass = "gradient-indigo";
+                    if (pack.id === "ready-gastronomi") gradientClass = "gradient-pink";
+                    if (pack.id === "ready-turk-soz-deyis") gradientClass = "gradient-teal";
+                    if (pack.id === "ready-bosluk-tamamlama") gradientClass = "gradient-cyan";
+                    if (pack.id === "ready-dort-islem") gradientClass = "gradient-crimson";
+                    if (pack.id === "ready-hayvanlar-dunyasi") gradientClass = "gradient-amber";
+                    if (pack.id === "ready-islam-kulturu") gradientClass = "gradient-emerald";
 
-                  <p>
-                    {quiz.questionCount} soru • {quiz.timerSeconds} saniye
-                  </p>
-
-                  <span>{formatDate(quiz.createdAt)}</span>
+                    return (
+                      <div className={`ready-pack-card ${gradientClass}`} key={pack.id}>
+                        <div className="ready-card-content">
+                          <span className="ready-category-badge">{pack.category}</span>
+                          <h4>{pack.title}</h4>
+                          <p>{pack.description}</p>
+                          <span className="ready-questions-info">
+                            ⏱️ Süre: {pack.timerSeconds}sn • 📝 {pack.questions.length} Soru
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          className="ready-start-button"
+                          onClick={() => handleStartRoom(pack.id)}
+                          disabled={startingQuizId !== null}
+                        >
+                          {startingQuizId === pack.id ? "Başlatılıyor..." : "Hemen Odayı Aç 🚀"}
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
-
-                <button
-                  type="button"
-                  onClick={() => handleStartRoom(quiz.id)}
-                  disabled={startingQuizId === quiz.id}
-                >
-                  {startingQuizId === quiz.id ? "Oda açılıyor..." : "Odayı Aç"}
-                </button>
+                <div className="spacer-large" />
               </div>
-            ))}
-          </div>
+            )}
+
+            <h3 className="section-title text-left">Benim Hazırladığım Özel Quizler</h3>
+
+            {quizzes.length === 0 ? (
+              <div className="empty-state">
+                <h3>Henüz kayıtlı özel quizin yok.</h3>
+                <p>
+                  İlk özel quizini oluşturduğunda burada görünecek. Sonra tek tıkla yeni
+                  oda açabileceksin.
+                </p>
+
+                <Link className="primary-button" to="/host">
+                  İlk Özel Quizini Oluştur
+                </Link>
+              </div>
+            ) : (
+              <div className="quiz-list">
+                {quizzes.map((quiz) => (
+                  <div className="quiz-list-card" key={quiz.id}>
+                    <div>
+                      <h3>{quiz.title}</h3>
+
+                      <p>
+                        {quiz.questionCount} soru • {quiz.timerSeconds} saniye
+                      </p>
+
+                      <span>{formatDate(quiz.createdAt)}</span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleStartRoom(quiz.id)}
+                      disabled={startingQuizId !== null}
+                    >
+                      {startingQuizId === quiz.id ? "Oda açılıyor..." : "Odayı Aç"}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
         )}
 
         <div className="spacer" />

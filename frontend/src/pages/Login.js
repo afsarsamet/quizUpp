@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { BACKEND_URL } from "../config";
 
 function Login() {
   const navigate = useNavigate();
@@ -41,7 +42,7 @@ function Login() {
     try {
       setLoading(true);
 
-      const response = await fetch("http://localhost:5000/api/auth/login", {
+      const response = await fetch(`${BACKEND_URL}/api/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
