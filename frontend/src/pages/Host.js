@@ -12,7 +12,7 @@ function Host() {
   const navigate = useNavigate();
 
   const [title, setTitle] = useState("");
-  const [timerSeconds, setTimerSeconds] = useState(20);
+  const [timerSeconds, setTimerSeconds] = useState(25);
   const [questions, setQuestions] = useState([{ ...emptyQuestion }]);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -327,6 +327,7 @@ function Host() {
             <option value={10}>10 saniye</option>
             <option value={15}>15 saniye</option>
             <option value={20}>20 saniye</option>
+            <option value={25}>25 saniye</option>
             <option value={30}>30 saniye</option>
             <option value={45}>45 saniye</option>
             <option value={60}>60 saniye</option>

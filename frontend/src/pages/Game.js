@@ -3,7 +3,17 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { io } from "socket.io-client";
 import { BACKEND_URL } from "../config";
 
-const colors = ["bg-red-500", "bg-blue-500", "bg-yellow-500", "bg-green-500"];
+
+const getPlayerAvatar = (username) => {
+  const avatars = ["🦊", "🦁", "🐯", "🐼", "🐨", "🤖", "👻", "👽", "🦄", "🐙", "🦖", "🐸", "🐱", "🐶"];
+  if (!username) return "👤";
+  let hash = 0;
+  for (let i = 0; i < username.length; i++) {
+    hash = username.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const index = Math.abs(hash) % avatars.length;
+  return avatars[index];
+};
 
 function Game() {
   const location = useLocation();
@@ -22,7 +32,6 @@ function Game() {
   }, []);
 
   const [connected, setConnected] = useState(false);
-  const [pingMs, setPingMs] = useState(null);
   const [roomTitle, setRoomTitle] = useState(quizTitle);
   const [players, setPlayers] = useState([]);
 
@@ -239,17 +248,6 @@ function Game() {
       setConnected(false);
     });
 
-    // Latency Ping Handshake
-    const pingInterval = setInterval(() => {
-      if (socket.connected) {
-        socket.emit("latencyPing", Date.now());
-      }
-    }, 3000);
-
-    socket.on("latencyPong", (startTime) => {
-      const rtt = Date.now() - Number(startTime);
-      setPingMs(rtt);
-    });
 
     socket.on("reconnectionState", (state) => {
       if (state.answered) {
@@ -334,10 +332,8 @@ function Game() {
     });
 
     return () => {
-      clearInterval(pingInterval);
       socket.off("connect");
       socket.off("disconnect");
-      socket.off("latencyPong");
       socket.off("reconnectionState");
       socket.off("roomUpdated");
       socket.off("gameStarted");
@@ -517,16 +513,15 @@ function Game() {
 
   const getOptionClassName = (optionIndex) => {
     const correctOptionIndex = getCorrectOptionIndex();
-    const colorClass = colors[optionIndex] || "bg-blue-500";
 
     if (triedOptions.includes(optionIndex)) {
       return "quiz-option-button wrong-option";
     }
 
-    if (!answerResult && !questionEnded) {
+    if (!questionEnded) {
       return selectedOptionIndex === optionIndex
-        ? `quiz-option-button ${colorClass} selected-option`
-        : `quiz-option-button ${colorClass}`;
+        ? `quiz-option-button selected-option`
+        : `quiz-option-button`;
     }
 
     if (correctOptionIndex === optionIndex) {
@@ -540,7 +535,7 @@ function Game() {
       return "quiz-option-button wrong-option";
     }
 
-    return `quiz-option-button ${colorClass} disabled-option`;
+    return `quiz-option-button disabled-option`;
   };
 
   const getOptionStyle = (optionIndex) => {
@@ -566,12 +561,6 @@ function Game() {
     return "timer-box";
   };
 
-  const getLatencyClassName = () => {
-    if (pingMs === null) return "latency-hud ping-unknown";
-    if (pingMs < 50) return "latency-hud ping-good";
-    if (pingMs < 150) return "latency-hud ping-fair";
-    return "latency-hud ping-poor";
-  };
 
   const renderAnswerDistribution = () => {
     if (!questionEndPayload || !questionEndPayload.answerDistribution) return null;
@@ -634,18 +623,8 @@ function Game() {
       </div>
 
       <div className="game-card wide-card">
-        {/* UTILITY BAR FOR PING & SOUND */}
-        <div className="game-utility-bar">
-          {connected && pingMs !== null ? (
-            <div className={getLatencyClassName()}>
-              ⚡ Ping: {pingMs}ms
-            </div>
-          ) : (
-            <div className="latency-hud ping-unknown">
-              ⚡ Gecikme Ölçülüyor...
-            </div>
-          )}
-
+        {/* UTILITY BAR FOR SOUND */}
+        <div className="game-utility-bar" style={{ justifyContent: "flex-end" }}>
           <div className="sound-toggle-container">
             <button className="sound-toggle-btn" onClick={handleToggleMute}>
               {isMuted ? "🔇 Ses Kapalı" : "🔊 Ses Açık"}
@@ -726,7 +705,10 @@ function Game() {
                 <ul className="player-list">
                   {players.map((player, index) => (
                     <li key={`${player.username}-${index}`}>
-                      <span>{player.username}</span>
+                      <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <span className="player-avatar-mini">{getPlayerAvatar(player.username)}</span>
+                        {player.username}
+                      </span>
                       <strong>{player.score || 0} puan</strong>
                     </li>
                   ))}
@@ -781,16 +763,30 @@ function Game() {
 
                 <div className="option-list">
                   {currentQuestion.options.map((option, optionIndex) => (
-                    <button
-                      type="button"
-                      key={`${option}-${optionIndex}`}
-                      className={getOptionClassName(optionIndex)}
-                      onClick={() => handleSelectOption(optionIndex)}
-                      style={getOptionStyle(optionIndex)}
-                      disabled={(isHost && !isReadyQuiz) || Boolean(answerResult) || questionEnded || triedOptions.includes(optionIndex)}
-                    >
-                      {option}
-                    </button>
+                    <div key={`${option}-${optionIndex}`} className="option-container-wrapper" style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                      <button
+                        type="button"
+                        className={getOptionClassName(optionIndex)}
+                        onClick={() => handleSelectOption(optionIndex)}
+                        style={getOptionStyle(optionIndex)}
+                        disabled={(isHost && !isReadyQuiz) || Boolean(answerResult) || questionEnded || triedOptions.includes(optionIndex)}
+                      >
+                        {option}
+                      </button>
+                      {/* Soru bittikten sonra bu şıkkı seçenlerin profil resimleri */}
+                      {questionEnded && questionEndPayload?.playerAnswers && (
+                        <div className="option-voters-list" style={{ display: "flex", flexWrap: "wrap", gap: "6px", paddingLeft: "10px", marginTop: "2px" }}>
+                          {questionEndPayload.playerAnswers
+                            .filter((voter) => voter.selectedOption === optionIndex)
+                            .map((voter) => (
+                              <span key={voter.username} className="voter-badge" title={voter.username} style={{ display: "inline-flex", alignItems: "center", gap: "4px", background: "rgba(255,255,255,0.08)", padding: "3px 8px", borderRadius: "12px", fontSize: "12px", color: "var(--white)", border: "1px solid rgba(255,255,255,0.12)" }}>
+                                <span className="voter-avatar" style={{ fontSize: "14px" }}>{getPlayerAvatar(voter.username)}</span>
+                                <span className="voter-name" style={{ fontWeight: "600" }}>{voter.username}</span>
+                              </span>
+                            ))}
+                        </div>
+                      )}
+                    </div>
                   ))}
                 </div>
 
@@ -823,30 +819,32 @@ function Game() {
                   </div>
                 )}
 
-                {(!isHost || isReadyQuiz) && answerResult && !questionEnded && (
-                  <div
-                    className={
-                      answerResult.isCorrect
-                        ? "alert alert-success"
-                        : "alert alert-error"
-                    }
-                  >
-                    {answerResult.isCorrect
-                      ? `Doğru cevap! ${
-                          answerResult.speedBonus > 0
-                            ? `🚀 En hızlı cevap bonusu (+${answerResult.speedBonus} KP) kazandın! `
-                            : ""
-                        }+${answerResult.pointsGained} puan aldın. Toplam puanın: ${answerResult.score}`
-                      : "Yanlış cevap! Doğru cevap yeşil renkle işaretlendi."}
-                  </div>
-                )}
 
                 {questionEnded && (
                   <>
-                    <div className="alert alert-success">
-                      Doğru cevap:{" "}
-                      {currentQuestion.options[questionEndPayload.correctOptionIndex]}
-                    </div>
+                    {(!isHost || isReadyQuiz) && answerResult && (
+                      <div
+                        className={
+                          answerResult.isCorrect
+                            ? "alert alert-success"
+                            : "alert alert-error"
+                        }
+                      >
+                        {answerResult.isCorrect
+                          ? `Tebrikler, Doğru cevap! ${
+                              answerResult.speedBonus > 0
+                                ? `🚀 En hızlı cevap bonusu (+${answerResult.speedBonus} KP) kazandınız! `
+                                : ""
+                            }+${answerResult.pointsGained} puan aldınız. Toplam puanınız: ${answerResult.score}`
+                          : "Yanlış cevap verdiniz! Doğru seçeneği yeşil renkte görebilirsiniz."}
+                      </div>
+                    )}
+
+                    {(!isHost || isReadyQuiz) && !answerResult && (
+                      <div className="alert alert-error">
+                        Süre bitti, herhangi bir şık seçmediniz!
+                      </div>
+                    )}
 
                     {renderAnswerDistribution()}
 
@@ -890,7 +888,8 @@ function Game() {
                   <ul className="player-list">
                     {players.map((player, index) => (
                       <li key={`${player.username}-score-${index}`}>
-                        <span>
+                        <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          <span className="player-avatar-mini">{getPlayerAvatar(player.username)}</span>
                           {player.username}
                           {player.answered ? " ✅" : ""}
                         </span>
@@ -929,7 +928,10 @@ function Game() {
               <div className="champion-card">
                 <div className="crown-icon">👑</div>
                 <h4>Yarışma Şampiyonu</h4>
-                <div className="champion-name">{leaderboard[0].username}</div>
+                <div className="champion-name" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "10px" }}>
+                  <span style={{ fontSize: "28px" }}>{getPlayerAvatar(leaderboard[0].username)}</span>
+                  {leaderboard[0].username}
+                </div>
                 <div className="champion-score">{leaderboard[0].score} KP</div>
                 <p className="champion-congrats">Tebrikler! Muhteşem bir yarış çıkardın! 🎉</p>
               </div>
@@ -945,8 +947,9 @@ function Game() {
                 <ol className="leaderboard-list">
                   {leaderboard.slice(0, 3).map((player, index) => (
                     <li key={`${player.username}-leaderboard-${index}`}>
-                      <span className="player-rank-info">
+                      <span className="player-rank-info" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                         <span className="rank-badge">{index + 1}</span>
+                        <span className="player-avatar-mini">{getPlayerAvatar(player.username)}</span>
                         {player.username}
                       </span>
                       <strong>{player.score} puan</strong>

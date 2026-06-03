@@ -41,7 +41,7 @@ const readyQuizzes = [
   {
     id: "ready-genel-kultur",
     title: "🧠 Genel Kültür Şampiyonası",
-    timerSeconds: 15,
+    timerSeconds: 25,
     category: "Genel Kültür",
     description: "Tarihten bilime, sanattan genel yeteneğe uzanan 20 soruluk genel kültür yarışması!",
     questions: [
@@ -70,7 +70,7 @@ const readyQuizzes = [
   {
     id: "ready-tarih-cografya",
     title: "🌍 Tarih & Coğrafya Atlası",
-    timerSeconds: 20,
+    timerSeconds: 25,
     category: "Tarih & Coğrafya",
     description: "Kıtalar, nehirler, padişahlar ve devrimler! 20 soruluk tarih ve coğrafya turu.",
     questions: [
@@ -99,7 +99,7 @@ const readyQuizzes = [
   {
     id: "ready-spor-dunyasi",
     title: "⚽ Spor Dünyası Arenası",
-    timerSeconds: 15,
+    timerSeconds: 25,
     category: "Spor Dünyası",
     description: "Futboldan basketbola, rekorlardan olimpiyatlara spor dolu 20 soru!",
     questions: [
@@ -128,7 +128,7 @@ const readyQuizzes = [
   {
     id: "ready-yesilcam-sinema",
     title: "🎬 Yeşilçam & Sinema Kuşağı",
-    timerSeconds: 20,
+    timerSeconds: 25,
     category: "Yeşilçam & Sinema",
     description: "Kemal Sunal'dan Şener Şen'e, Türk sinemasının efsane yapıtları ve unutulmaz replikleri!",
     questions: [
@@ -157,7 +157,7 @@ const readyQuizzes = [
   {
     id: "ready-bilim-teknoloji",
     title: "🔬 Bilim & Teknoloji Serüveni",
-    timerSeconds: 15,
+    timerSeconds: 25,
     category: "Bilim & Teknoloji",
     description: "Uzaydan internete, tarihin gidişatını değiştiren bilimsel buluşlar ve teknolojik yenilikler!",
     questions: [
@@ -186,7 +186,7 @@ const readyQuizzes = [
   {
     id: "ready-matematik-mantik",
     title: "🔢 Matematik & Mantık Arenası",
-    timerSeconds: 20,
+    timerSeconds: 25,
     category: "Matematik & Mantık",
     description: "Zeka sınırlarını zorlayan eğlenceli matematik problemleri ve pratik mantık bulmacaları!",
     questions: [
@@ -215,7 +215,7 @@ const readyQuizzes = [
   {
     id: "ready-gastronomi",
     title: "🍳 Gastronomi & Mutfak Sanatları",
-    timerSeconds: 15,
+    timerSeconds: 25,
     category: "Gastronomi",
     description: "Dünya mutfağından Türk lezzetlerine, baharatlardan ünlü yemeklerin hikayelerine uzanan leziz 20 soru!",
     questions: [
@@ -244,7 +244,7 @@ const readyQuizzes = [
   {
     id: "ready-turk-soz-deyis",
     title: "🗣️ Türk Söz ve Deyişleri",
-    timerSeconds: 15,
+    timerSeconds: 25,
     category: "Söz & Deyişler",
     description: "Kültürümüzün aynası olan atasözleri, deyimler ve meşhur deyişler üzerine 20 eğlenceli soru!",
     questions: [
@@ -273,7 +273,7 @@ const readyQuizzes = [
   {
     id: "ready-bosluk-tamamlama",
     title: "✍️ Boşluk Tamamlama Bilmeceleri",
-    timerSeconds: 15,
+    timerSeconds: 25,
     category: "Boşluk Doldurma",
     description: "Atasözleri, deyimler ve ünlü sözlerdeki eksik kelimeleri tamamlayacağınız harika 20 soru!",
     questions: [
@@ -302,7 +302,7 @@ const readyQuizzes = [
   {
     id: "ready-dort-islem",
     title: "⚡ Hızlı 4 İşlem Zekası",
-    timerSeconds: 15,
+    timerSeconds: 25,
     category: "4 İşlem",
     description: "Zamanla yarışarak yapacağınız, pratik işlem yeteneğinizi test eden 20 hızlı matematik sorusu!",
     questions: [
@@ -331,7 +331,7 @@ const readyQuizzes = [
   {
     id: "ready-hayvanlar-dunyasi",
     title: "🦁 Hayvanlar Dünyası ve Doğa",
-    timerSeconds: 15,
+    timerSeconds: 25,
     category: "Hayvanlar",
     description: "Vahşi yaşamdan evcil dostlarımıza, doğanın en ilginç canlıları hakkında 20 şaşırtıcı soru!",
     questions: [
@@ -360,7 +360,7 @@ const readyQuizzes = [
   {
     id: "ready-islam-kulturu",
     title: "🕌 İslam Tarihi & Kültürü",
-    timerSeconds: 15,
+    timerSeconds: 25,
     category: "İslam Kültürü",
     description: "İslam tarihi, genel kültürü, peygamberlerin hayatları ve temel kavramlar üzerine 20 eğitici soru!",
     questions: [
@@ -686,6 +686,7 @@ function sendQuestion(io, roomCode, room) {
 
     // Calculate answer distribution counts
     const distribution = [0, 0, 0, 0];
+    const playerAnswers = [];
     room.players.forEach((p) => {
       if (p.currentQuestionAnswer !== null && p.currentQuestionAnswer !== undefined) {
         const idx = Number(p.currentQuestionAnswer);
@@ -693,6 +694,10 @@ function sendQuestion(io, roomCode, room) {
           distribution[idx]++;
         }
       }
+      playerAnswers.push({
+        username: p.username,
+        selectedOption: p.currentQuestionAnswer !== undefined ? p.currentQuestionAnswer : null,
+      });
     });
 
     io.to(roomCode).emit("questionEnded", {
@@ -700,6 +705,7 @@ function sendQuestion(io, roomCode, room) {
       correctAnswer: currentQuestion.options[currentQuestion.correctOptionIndex],
       leaderboard: getLeaderboard(room),
       answerDistribution: distribution,
+      playerAnswers: playerAnswers,
     });
 
     emitRoomUpdated(io, roomCode, room);
@@ -1387,12 +1393,12 @@ io.on("connection", (socket) => {
         if (room.isStarted) {
           socket.emit("gameStarted");
           socket.emit("nextQuestion", getCurrentQuestionPayload(room));
-          if (existingPlayer.answeredQuestions.has(room.currentQuestionIndex)) {
-            socket.emit("reconnectionState", {
-              answered: true,
-              score: existingPlayer.score,
-            });
-          }
+          socket.emit("reconnectionState", {
+            answered: existingPlayer.answeredQuestions.has(room.currentQuestionIndex),
+            score: existingPlayer.score,
+            usedJoker5050: !!existingPlayer.usedJoker5050,
+            usedJokerDoubleChance: !!existingPlayer.usedJokerDoubleChance,
+          });
         }
 
         if (typeof callback === "function") {
@@ -1431,6 +1437,9 @@ io.on("connection", (socket) => {
           username: cleanUsername,
           score: 0,
           answeredQuestions: new Set(),
+          usedJoker5050: false,
+          usedJokerDoubleChance: false,
+          doubleChanceActive: false,
         });
       }
     }
@@ -1505,6 +1514,9 @@ io.on("connection", (socket) => {
       ...player,
       score: 0,
       answeredQuestions: new Set(),
+      usedJoker5050: false,
+      usedJokerDoubleChance: false,
+      doubleChanceActive: false,
     }));
 
     io.to(roomId).emit("gameStarted");
@@ -1658,6 +1670,7 @@ io.on("connection", (socket) => {
 
       // Calculate answer distribution counts
       const distribution = [0, 0, 0, 0];
+      const playerAnswers = [];
       room.players.forEach((p) => {
         if (p.currentQuestionAnswer !== null && p.currentQuestionAnswer !== undefined) {
           const idx = Number(p.currentQuestionAnswer);
@@ -1665,6 +1678,10 @@ io.on("connection", (socket) => {
             distribution[idx]++;
           }
         }
+        playerAnswers.push({
+          username: p.username,
+          selectedOption: p.currentQuestionAnswer !== undefined ? p.currentQuestionAnswer : null,
+        });
       });
 
       io.to(roomId).emit("questionEnded", {
@@ -1672,6 +1689,7 @@ io.on("connection", (socket) => {
         correctAnswer: question.options[question.correctOptionIndex],
         leaderboard: getLeaderboard(room),
         answerDistribution: distribution,
+        playerAnswers: playerAnswers,
       });
 
       emitRoomUpdated(io, roomId, room);
@@ -1727,6 +1745,11 @@ io.on("connection", (socket) => {
   socket.on("useJoker5050", ({ roomId }, callback) => {
     const room = rooms.get(roomId);
     if (!room || !room.isStarted) return callback?.({ ok: false });
+    const player = room.players.find((p) => p.socketId === socket.id);
+    if (!player) return callback?.({ ok: false });
+    if (player.usedJoker5050) return callback?.({ ok: false, message: "Yarı Yarıya jokeri zaten kullanıldı." });
+
+    player.usedJoker5050 = true;
     const question = room.questions[room.currentQuestionIndex];
     const correctIndex = question.correctOptionIndex;
     
@@ -1745,7 +1768,9 @@ io.on("connection", (socket) => {
     if (!room || !room.isStarted) return callback?.({ ok: false });
     const player = room.players.find((p) => p.socketId === socket.id);
     if (!player) return callback?.({ ok: false });
+    if (player.usedJokerDoubleChance) return callback?.({ ok: false, message: "Çift Şans jokeri zaten kullanıldı." });
     
+    player.usedJokerDoubleChance = true;
     player.doubleChanceActive = true;
     callback?.({ ok: true });
   });
