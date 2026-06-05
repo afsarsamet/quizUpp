@@ -1,10 +1,10 @@
-# 📚 QuizUpp Proje Geliştirme Dökümantasyonu (Akademik & Premium Güncelleme 🚀)
+#  QuizUpp Proje Geliştirme Dökümantasyonu (Akademik & Premium Güncelleme)
 
 Bu belge, **QuizUpp** gerçek zamanlı bilgi yarışması uygulamasının ilk halinden itibaren yapılan tüm mimari, tasarım, teknik derinlik ve içerik geliştirmelerini detaylı bir şekilde sunmaktadır. Proje, hocanızın talepleri doğrultusunda teknik derinliği artırılmış, e-spor temalı premium bir oyun haline getirilmiştir.
 
 ---
 
-## 🏛️ 1. Genel Mimari ve Teknoloji Yığını
+## . Genel Mimari ve Teknoloji Yığını
 
 Uygulamamız **Client-Server (İstemci-Sunucu)** yapısında olup, bağımsız mikroservis mimarisiyle Docker üzerinde containerize edilmiştir.
 
@@ -23,7 +23,7 @@ graph TD
 
 ---
 
-## 🎨 2. Arayüz Tasarımı ve Kullanıcı Deneyimi (UX) Geliştirmeleri
+##  2. Arayüz Tasarımı ve Kullanıcı Deneyimi (UX) Geliştirmeleri
 
 Projenin ilk halindeki sıkışık ve standart görünümler giderilerek, koyu neon temalı premium bir oyun arayüzü tasarlanmıştır.
 
@@ -46,7 +46,7 @@ Canlı oyun ekranı geniş masaüstü ekranlarda dikeyde çok uzamaması için i
 
 ---
 
-## ⚙️ 3. Teknik Derinlik ve Akademik Özellikler
+##  3. Teknik Derinlik ve Akademik Özellikler
 
 Projenin akademik kalitesini ve teknik ağırlığını artırmak amacıyla geliştirilen ileri seviye özellikler:
 
@@ -74,19 +74,19 @@ Arayüz manipülasyonuyla sınırsız joker kullanılmasını önlemek için `%5
 
 ---
 
-## 📝 4. İçerik ve Konsept Güncellemeleri
+##  4. İçerik ve Konsept Güncellemeleri
 
 ### A) TRT Bil Bakalım Marka Temizliği
 Uygulamada yer alan tüm "TRT Bil Bakalım" marka referansları temizlenerek, proje tamamen özgün bir **"QuizUpp"** markası ve konseptine dönüştürülmüştür.
 
 ### B) Hazır Soru Paketleri ve Özgün Sorular
 Her biri 20'şer adet özgün ve eğitici sorudan oluşan 6 yeni premium hazır konu şablonu (toplam 120 soru) backend'e statik şablon olarak gömülmüştür:
-1.  **🍳 Gastronomi & Mutfak Sanatları** (Neon Pembe)
-2.  **🗣️ Türk Söz ve Deyişleri** (Neon Turkuaz)
-3.  **✍️ Boşluk Tamamlama Bilmeceleri** (Neon Cyan)
-4.  **⚡ Hızlı 4 İşlem Zekası** (Neon Kırmızı)
-5.  **🦁 Hayvanlar Dünyası ve Doğa** (Neon Turuncu)
-6.  **🕌 İslam Tarihi & Kültürü** (Neon Zümrüt Yeşili)
+1.  ** Gastronomi & Mutfak Sanatları**
+2.  ** Türk Söz ve Deyişleri**
+3.  ** Boşluk Tamamlama Bilmeceleri**
+4.  ** Hızlı 4 İşlem Zekası**
+5.  ** Hayvanlar Dünyası ve Doğa**
+6.  ** İslam Tarihi & Kültürü** 
 
 ### C) Host Yetki Modifikasyonu
 *   **Hazır Konu Şablonları:** Hazır şablonlarda odayı kuran kişi (host) cevapları önceden bilmediği için oyuncu listesine dahil edilerek soru çözebilir, joker kullanabilir ve yarışabilir.
@@ -96,7 +96,7 @@ Her biri 20'şer adet özgün ve eğitici sorudan oluşan 6 yeni premium hazır 
 
 ---
 
-## 📈 5. Veritabanı ve İlişkisel Model (PostgreSQL)
+##  5. Veritabanı ve İlişkisel Model (PostgreSQL)
 
 Kendi hazırladığımız özel quizlerin kalıcı olması için kullanılan veritabanı şeması:
 
