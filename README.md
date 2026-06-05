@@ -4,6 +4,25 @@ QuizUpp; kullanıcıların kendi bilgi yarışmalarını (quiz) oluşturabildiğ
 
 ---
 
+## 🔄 Projenin Gelişim Süreci: İlk Sürüm ve Yapılan İyileştirmeler (Before & After)
+
+Projemizin akademik jüri değerlendirmesinde yapılan teknik katkıyı net bir şekilde gösterebilmek adına, **ilk (orijinal) sürüm** ile üzerinde gerçekleştirdiğimiz **akademik/teknik iyileştirmelerin** karşılaştırması aşağıda listelenmiştir:
+
+| Özellik / Katman | Projenin İlk (Orijinal) Hali ❌ | Geliştirilmiş Son Sürüm (Bizim Yaptığımız)  |
+| :--- | :--- | :--- |
+| **Veritabanı Yapısı** | Sadece RAM üzerinde tutulan geçici veri modeli vardı. Uygulama kapandığında tüm veriler siliniyordu. | **PostgreSQL Entegrasyonu:** `users`, `quizzes`, `quiz_questions` ve `leaderboard` tablolarıyla kalıcı ve ilişkisel bir veri tabanı kuruldu. |
+| **Arayüz Düzeni** | Sıkışık, tek sütunlu ve yerleşimi bozuk standart bir CSS yapısı mevcuttu. | **Espor Temalı 2 Kolon Grid Düzeni:** Sol tarafta oyun alanı (sorular, şıklar, jokerler), sağ tarafta skorbord ve emoji reaksiyon paneli yer alacak şekilde esnek grid tasarımı yapıldı. |
+| **Kopma Koruması** | Oyuncu tarayıcıyı yenilediğinde (F5) veya interneti koptuğunda odadan düşüyor, puanları sıfırlanıyordu. | **Disconnection-Tolerance:** Tarayıcı yenilense dahi 60 saniye boyunca oyuncu bilgileri sunucuda dondurulur ve geri döndüğünde kaldığı yerden tüm haklarıyla devam eder. |
+| **Cevap Güvenliği** | Oyuncu şık seçtiği anda doğru/yanlış anında gösteriliyordu. Bu durum yan yana oturan oyuncular için kopya çekme riski yaratıyordu. | **Cevap Gizleme:** Oyuncu şık seçtiğinde süresi dolana kadar doğru/yanlış açıklanmaz. Süre bittiğinde cevaplar aynı anda herkes için açılır. |
+| **Görsel Geribildirim** | Soru bittiğinde kimin hangi şıkkı seçtiği veya şıkların oy oranları görünmüyordu. | **Voters PP & Saf SVG Dağılım Grafikleri:** Soru bittiğinde şıkların oy oranları animasyonlu SVG barlarla çizilir ve şıkların altında o seçeneği seçen oyuncuların profil resimleri (PP) baloncuklar şeklinde dairesel olarak listelenir. |
+| **Ses Motoru** | Uygulamada hiçbir ses efekti bulunmuyordu. | **Web Audio API Ses Sentezleyici:** Ağ trafiğine yük getirmemesi için tik-tak, doğru, yanlış, roket bonusu ve şampiyonluk melodileri tarayıcı osilatörleriyle kod üzerinden sentezlendi. |
+| **Joker Sistemi** | Herhangi bir joker hakkı mevcut değildi. | **Sunucu Tarafı Joker Doğrulaması:** Yarı Yarıya (%50) ve Çift Şans jokerleri sunucu tarafında doğrulanarak hileye karşı korumalı ve tek kullanımlık şekilde entegre edildi. |
+| **Hazır İçerik** | Sistemde hazır kategori bulunmuyordu; hostun her seferinde sıfırdan soru yazması zorunluydu. | **12 Hazır Soru Şablonu (120 Soru):** Genel Kültür, Gastronomi, Tarih, İslam Kültürü gibi her biri 20'şer sorudan oluşan 12 farklı hazır kategori sisteme gömüldü. |
+| **Host Rolleri** | Lobi yöneticisi (host) soruları bilse de bilmese de hiçbir zaman yarışmaya dahil olamıyordu. | **Host Yetki Modifikasyonu:** Hazır şablonlarda host da oyuna oyuncu olarak katılıp yarışabilirken, kendi yazdığı özel sınavlarda hile olmaması için izleyici kalır. |
+| **Lobi Keşfi & Skorbord** | Canlı lobilere sadece kodla girilebiliyordu. Küresel skor sıralaması yoktu. | **Aktif Odalar & Liderlik Kürsüsü (Podium):** Ana sayfada aktif lobiler listelenir ve veritabanındaki en yüksek puana sahip ilk 3 yarışmacı 3D podyumda sergilenir. |
+
+---
+
 ## 🏛️ 1. Genel Mimari ve Teknoloji Yığını
 
 Uygulamamız **Client-Server (İstemci-Sunucu)** yapısında olup, bağımsız mikroservis mimarisiyle Docker üzerinde containerize edilmiştir.
@@ -65,9 +84,7 @@ CREATE TABLE IF NOT EXISTS leaderboard (
 
 ---
 
-## ⚡ 3. Teknik Derinlik ve Gelişmiş Özellikler
-
-Projenin akademik kalitesini ve teknik ağırlığını artırmak amacıyla geliştirilen ileri seviye özellikler:
+## ⚡ 3. Geliştirilen İleri Seviye Teknik Özellikler
 
 ### A) Disconnection-Tolerance (Bağlantı Kopma Koruması)
 Gerçek zamanlı oyunlarda internet kesintileri veya tarayıcı yenilemelerine (F5) karşı tolerans geliştirilmiştir:
