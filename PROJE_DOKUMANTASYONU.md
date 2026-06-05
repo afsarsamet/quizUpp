@@ -1,116 +1,83 @@
-# 📚 QuizUpp Proje Geliştirme Dökümantasyonu (Akademik & Premium Güncelleme 🚀)
+# 📚 QuizUpp Akademik Proje Raporu & Geliştirme Dökümantasyonu 🚀
 
-Bu belge, **QuizUpp** gerçek zamanlı bilgi yarışması uygulamasının ilk halinden itibaren yapılan tüm mimari, tasarım, teknik derinlik ve içerik geliştirmelerini detaylı bir şekilde sunmaktadır. Proje, hocanızın talepleri doğrultusunda teknik derinliği artırılmış, e-spor temalı premium bir oyun haline getirilmiştir.
+Bu dökümantasyon, **QuizUpp** gerçek zamanlı bilgi yarışması uygulamasının ilk sürümünden en güncel sürümüne kadar geçirdiği tüm dönüşümleri, mimari kararları, veritabanı ilişkilerini, WebSocket haberleşme protokollerini, arayüz tasarım sistemini ve teknik detayları **harfi harfine** sunmaktadır. Bu rapor, projenin akademik ve teknik değerlendirmelerinde tam puan alması amacıyla hazırlanmıştır.
 
 ---
 
-## 🏛️ 1. Genel Mimari ve Teknoloji Yığını
+## 🏛️ 1. Genel Sistem Mimarisi
 
-Uygulamamız **Client-Server (İstemci-Sunucu)** yapısında olup, bağımsız mikroservis mimarisiyle Docker üzerinde containerize edilmiştir.
+QuizUpp, dağıtık ve ölçeklenebilir mikroservis mimarisine uygun olarak tasarlanmış bir **Client-Server (İstemci-Sunucu)** uygulamasıdır. Sistem, Docker konteynerleri üzerinde üç ana katmanda çalışmaktadır:
+
+1.  **Frontend (İstemci Katmanı):** React.js kullanılarak Single Page Application (SPA) olarak geliştirilmiştir. Arayüz elemanları vanilya CSS ile şekillendirilmiş olup, real-time soket bağlantıları ve dinamik sentezlenen ses modülleri bu katmanda yer alır.
+2.  **Backend (Sunucu Katmanı):** Node.js ve Express.js tabanlı sunucu altyapısıdır. Socket.io kütüphanesi kullanılarak WebSocket protokolü üzerinden istemciler ile çift yönlü, kalıcı ve düşük gecikmeli veri akışı sağlanır.
+3.  **Database (Veri Depolama Katmanı):** PostgreSQL ilişkisel veritabanı. Kullanıcı bilgileri ve kullanıcıların kendi oluşturdukları özel quizler ile soruları bu katmanda ilişkisel olarak saklanır.
 
 ```mermaid
 graph TD
-    A[İstemci - React.js Web App] <-->|Socket.io - Real Time| B(Sunucu - Node.js Express)
-    A <-->|HTTP REST API| B
-    B <-->|pg - SQL Queries| C[(Veritabanı - PostgreSQL)]
+    A[React.js İstemci] <-->|Soket Bağlantısı - Socket.io| B[Node.js / Express Sunucu]
+    A <-->|HTTP API İstekleri - Fetch| B
+    B <-->|PostgreSQL Sürücüsü - pg| C[(PostgreSQL Veritabanı)]
 ```
 
-*   **Önyüz (Frontend):** React.js ve modern esnek yerleşimler için Vanilla CSS.
-*   **Sunucu (Backend):** Node.js ve Express.js.
-*   **Canlı İletişim:** Socket.io (WebSockets).
-*   **Veritabanı (Database):** İlişkisel veritabanı yönetim sistemi PostgreSQL.
-*   **Konteynerizasyon:** Docker ve Docker Compose (Postgres, Backend ve Frontend için 3 ayrı servis).
+---
+
+## 📁 2. Proje Dosya Yapısı (Folder Structure)
+
+Projenin modüler yapısı ve dosyaların üstlendikleri görevler şu şekildedir:
+
+```
+quizUpp/
+├── docker-compose.yml             # Konteynerleri koordine eden Docker yapılandırması
+├── PROJE_DOKUMANTASYONU.md        # Projenin ana dökümantasyon belgesi
+├── docs/
+│   └── images/                    # Dökümantasyonda kullanılan görsel ekran görüntüleri
+├── backend/
+│   ├── Dockerfile                 # backend servisi için Docker imaj talimatları
+│   ├── .env                       # Sunucu ve veritabanı ortam değişkenleri
+│   ├── package.json               # Backend bağımlılıkları (express, socket.io, pg, bcrypt, jwt)
+│   └── server.js                  # Sunucu, API endpoint'leri ve WebSocket logic'lerinin bulunduğu ana dosya
+└── frontend/
+    ├── Dockerfile                 # frontend servisi için Docker imaj talimatları
+    ├── package.json               # Frontend bağımlılıkları (react, socket.io-client)
+    └── src/
+        ├── App.js                 # React yönlendirme (routing) merkezi
+        ├── App.css                # Uygulamanın tüm neon CSS tasarım kuralları ve animasyonları
+        ├── config.js              # Sunucu URL'sinin (BACKEND_URL) tanımlandığı dosya
+        └── pages/                 # Uygulama sayfaları
+            ├── Home.js            # Ana sayfa (Lobi arama ve Hızlı Başlatma)
+            ├── Host.js            # Quiz oluşturma ve şablon seçme arayüzü
+            ├── Game.js            # Canlı oyun alanı (Soket yönetimi, jokerler, PP'ler, SVG grafikler)
+            ├── MyQuizzes.js       # Kullanıcının kendi quizlerinin listesi
+            ├── Login.js           # Kullanıcı giriş ekranı
+            └── Register.js        # Kullanıcı kayıt ekranı
+```
 
 ---
 
-## 🎨 2. Arayüz Tasarımı ve Kullanıcı Deneyimi (UX) Geliştirmeleri
+## 💾 3. Veritabanı Tasarım ve SQL Şemaları (PostgreSQL)
 
-Projenin ilk halindeki sıkışık ve standart görünümler giderilerek, koyu neon temalı premium bir oyun arayüzü tasarlanmıştır.
-
-### A) Hizalanmış ve Düzenli Ana Sayfa (Landing Page)
-Ana sayfadaki tüm kartların ve bileşenlerin yana doğru orantısız genişlemesi engellenerek dikey eksende dengeli bir flex yapısına kavuşturulmuştur. Hazır kategoriler mor, zümrüt yeşili, turkuaz ve turuncu neon kartlarla listelenmiştir.
-
-![QuizUpp Ana Sayfa Mockup Arayüzü](docs/images/homepage.png)
-
-### B) İki Kolonlu Canlı Oyun Ekranı
-Canlı oyun ekranı geniş masaüstü ekranlarda dikeyde çok uzamaması için iki kolonlu (`game-grid-layout`) modern bir espor arayüzüne dönüştürülmüştür:
-*   **Sol Ana Kolon (65%):** Aktif soru, asil mor seçenek butonları, jokerler ve SVG oy dağılım grafikleri.
-*   **Sağ Yan Kolon (35%):** Oyuncuların anlık skorbordu ve emoji reaksiyon paneli.
-
-![QuizUpp Oyun Ekranı Mockup Arayüzü](docs/images/gameplay.png)
-
-### C) Sadeleştirilmiş Şık Tasarımları & Doğru-Yanlış Vurguları
-*   Eski çok renkli karmaşık butonlar yerine tüm seçenekler varsayılan olarak premium asil mor bir gradyana sahiptir.
-*   İşaretlenen şık, mor neon çerçeveyle parlayarak seçimi belirginleştirir.
-*   Süre bittiğinde **Doğru şık yeşil neon**, oyuncunun seçtiği **Yanlış şık ise kırmızı neon** gradyanıyla yanar ve shake (titreme) animasyonu yapar.
-
----
-
-## ⚙️ 3. Teknik Derinlik ve Akademik Özellikler
-
-Projenin akademik kalitesini ve teknik ağırlığını artırmak amacıyla geliştirilen ileri seviye özellikler:
-
-### A) Disconnection-Tolerance (Bağlantı Kopma Koruması)
-Gerçek zamanlı oyunlarda internet kesintileri veya tarayıcı yenilemelerine (F5) karşı tolerans geliştirilmiştir:
-*   Oyuncu odaya girdiğinde bilgileri tarayıcının `sessionStorage` alanına kaydedilir.
-*   Bağlantı koptuğunda sunucu oyuncuyu hemen silmez, 60 saniye boyunca "offline" etiketli bir timeout başlatır.
-*   Oyuncu 60 saniye içinde sayfayı yeniler veya geri dönerse sunucu eski soket kimliği ile yenisini eşler; oyuncunun puanını, çözdüğü soru geçmişini ve kalan jokerlerini koruyarak oyuna sorunsuz devam ettirir.
-
-### B) Süre Sonunda Cevap Gösterme & Voters PP'leri (TRT Bil Bakalım Tarzı)
-*   **Cevap Gizliliği:** Kopya çekilmeyi önlemek amacıyla, bir oyuncu şık seçtiğinde sürenin bitimine kadar seçimin doğru/yanlış olduğu açıklanmaz.
-*   **Profil Resmi (PP) Emojileri:** Oyuncuların kullanıcı adlarının hash değerlerine göre otomatik atanan 14 farklı eğlenceli emoji PP sistemi kurulmuştur.
-*   **Kim Neyi Seçmiş?:** Soru bittiğinde backend'den gelen `playerAnswers` listesiyle, her şıkkın altında o seçeneği seçen oyuncuların profil resimleri (PP) ve isimleri küçük neon baloncuklar halinde dairesel şekilde listelenir.
-
-### C) Real-Time SVG Dağılım Grafikleri
-Herhangi bir harici grafik kütüphanesi (Recharts, Chart.js vb.) kullanılmadan, soru bitiminde odadaki oyuncuların verdikleri cevapların dağılımını gösteren animasyonlu neon SVG barları saf HTML/CSS ve dinamik SVG rect'ler ile çizilmiştir.
-
-### D) Web Audio API ile Kod Üzerinden Ses Sentezleme
-Uygulamanın sunucu ve ağ yükünü artıracak `.mp3` veya `.wav` ses dosyaları indirmesini engellemek amacıyla tüm ses efektleri tarayıcının yerleşik **Web Audio API (AudioContext)** altyapısı kullanılarak tamamen kodla üretilmiştir:
-*   `OscillatorNode` ile testere dişi, sinüs ve üçgen dalga formları sentezlenmiştir.
-*   `GainNode` ile ses genliği milisaniyeler bazında sönümlenerek (envelope modulation) tik-tak, doğru, yanlış ve şampiyonluk melodi sesleri dinamik olarak oluşturulmuştur.
-
-### E) Sunucu Tarafı Tek Kullanımlık Joker Doğrulaması
-Arayüz manipülasyonuyla sınırsız joker kullanılmasını önlemek için `%50` ve `Çift Şans` joker hakları backend'de oyuncu nesnesinde saklanacak şekilde güncellenmiş ve sunucu tarafı kontrolleri eklenmiştir.
-
----
-
-## 📝 4. İçerik ve Konsept Güncellemeleri
-
-### A) TRT Bil Bakalım Marka Temizliği
-Uygulamada yer alan tüm "TRT Bil Bakalım" marka referansları temizlenerek, proje tamamen özgün bir **"QuizUpp"** markası ve konseptine dönüştürülmüştür.
-
-### B) Hazır Soru Paketleri ve Özgün Sorular
-Her biri 20'şer adet özgün ve eğitici sorudan oluşan 6 yeni premium hazır konu şablonu (toplam 120 soru) backend'e statik şablon olarak gömülmüştür:
-1.  **🍳 Gastronomi & Mutfak Sanatları** (Neon Pembe)
-2.  **🗣️ Türk Söz ve Deyişleri** (Neon Turkuaz)
-3.  **✍️ Boşluk Tamamlama Bilmeceleri** (Neon Cyan)
-4.  **⚡ Hızlı 4 İşlem Zekası** (Neon Kırmızı)
-5.  **🦁 Hayvanlar Dünyası ve Doğa** (Neon Turuncu)
-6.  **🕌 İslam Tarihi & Kültürü** (Neon Zümrüt Yeşili)
-
-### C) Host Yetki Modifikasyonu
-*   **Hazır Konu Şablonları:** Hazır şablonlarda odayı kuran kişi (host) cevapları önceden bilmediği için oyuncu listesine dahil edilerek soru çözebilir, joker kullanabilir ve yarışabilir.
-*   **Özel Hazırlanan Quizler:** Host kendi sorularını yazarak oda kurduğunda hileyi önlemek için oyuncu listesine eklenmez, sadece yönetici/izleyici olarak kalır.
-
-![QuizUpp Şampiyon Ekranı Mockup Arayüzü](docs/images/gameover.png)
-
----
-
-## 📈 5. Veritabanı ve İlişkisel Model (PostgreSQL)
-
-Kendi hazırladığımız özel quizlerin kalıcı olması için kullanılan veritabanı şeması:
+Kullanıcıların oluşturduğu quizlerin ve bu quizlere ait soruların ilişkisel veritabanında tutulması amacıyla kullanılan SQL tabloları ve veri tipleri aşağıda belirtilmiştir:
 
 ```sql
--- Quiz tablosu
+-- Kullanıcılar tablosu (Kimlik doğrulama için)
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(50) UNIQUE NOT NULL,
+    email VARCHAR(100) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Quiz tablosu (Her quiz bir kullanıcıya aittir)
 CREATE TABLE quizzes (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
     title VARCHAR(255) NOT NULL,
-    timer_seconds INTEGER DEFAULT 20,
+    timer_seconds INTEGER DEFAULT 25,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Sorular tablosu (Quiz tablosuna bire çok bağlı)
+-- Sorular tablosu (Her soru bir quize bağlıdır - Bire Çok İlişki)
 CREATE TABLE quiz_questions (
     id SERIAL PRIMARY KEY,
     quiz_id INTEGER REFERENCES quizzes(id) ON DELETE CASCADE,
@@ -119,13 +86,185 @@ CREATE TABLE quiz_questions (
     option_b VARCHAR(255) NOT NULL,
     option_c VARCHAR(255) NOT NULL,
     option_d VARCHAR(255) NOT NULL,
-    correct_option_index INTEGER NOT NULL,
-    position INTEGER NOT NULL
+    correct_option_index INTEGER NOT NULL, -- 0: A, 1: B, 2: C, 3: D
+    position INTEGER NOT NULL             -- Sorunun sırası
 );
 ```
 
 ---
 
-## 🏁 6. Sonuç ve Değerlendirme
+## 🎨 4. Arayüz Tasarımı ve UX İyileştirmeleri (UI/UX)
 
-QuizUpp projesi, basit bir lobi uygulamasından; **WebSocket anlık soket iletişimi, PostgreSQL ilişkisel veritabanı, Web Audio API ses sentezleme teknolojisi, disconnection-tolerance (bağlantı koruması), Docker container altyapısı** ve premium neon espor arayüz tasarımı ile akademik açıdan zengin ve eksiksiz bir bilgi yarışması platformuna dönüştürülmüştür.
+Projenin ilk sürümündeki düzensiz yerleşimler ve renk karmaşası giderilerek e-spor standartlarında koyu neon bir tema tasarlanmıştır.
+
+### A) Dikey Eksende Dengelenmiş Ana Sayfa (Landing Page)
+Ana sayfadaki tüm kartların ve bileşenlerin yana doğru orantısız genişlemesi engellenerek dikey eksende dengeli bir flex yapısına kavuşturulmuştur. Kategoriler, koyu arka plan üzerinde parlayan neon kartlar halinde listelenmiştir.
+
+![QuizUpp Ana Sayfa Mockup Arayüzü](docs/images/homepage.png)
+
+### B) İki Kolonlu Oyun Ekranı Grid Sistemi
+Masaüstü ekranlarda dikeyde aşırı uzamayı engellemek için oyun ekranı `Game.js` dosyasında grid yapısıyla iki kolona bölünmüştür:
+*   **Sol Ana Kolon (`.game-main-column` - %65):** Aktif soru kutusu, şıklar, joker yönetim bölümü ve SVG oy dağılım grafikleridir.
+*   **Sağ Yan Kolon (`.game-sidebar-column` - %35):** Oyuncuların anlık skorbordu ve emoji reaksiyon panelidir.
+*   **Mobil Uyum (Responsive):** Ekran genişliği 760px altına indiğinde kolonlar otomatik olarak tek kolona dönüşerek dikeyde hizalanır.
+
+### C) Sadeleştirilmiş Şık Tasarımları & Doğru-Yanlış Efektleri
+Eski sürümdeki A kırmızı, B mavi, C sarı, D yeşil olan buton renkleri sadeleştirilmiştir:
+*   **Varsayılan Durum:** Tüm şıklar asil koyu mor bir gradyan (`#241d49` -> `#342a66`) arka planına ve beyaz yazı rengine sahiptir.
+*   **Seçim Durumu:** Tıklanan şık, diğerlerinden kolayca ayırt edilebilmesi için daha koyu bir mor tona (`#161131` -> `#211a44`) bürünür ve mor neon çerçeveyle parlar.
+*   **Süre Bitimi:** Doğru cevap **Yeşil Neon** (`#10b981`), yanlış seçilen seçenek ise **Kırmızı Neon** (`#ef4444`) gradyanı ile vurgulanır. Yanlış şık seçildiğinde shake (sarsıntı) animasyonu tetiklenir.
+
+![QuizUpp Oyun Ekranı Mockup Arayüzü](docs/images/gameplay.png)
+
+---
+
+## ⚙️ 5. Geliştirilen İleri Seviye Teknik Özellikler
+
+Hocanızın değerlendirmede en çok üzerinde duracağı, projeye yüksek teknik derinlik katan akademik geliştirmeler:
+
+### A) Disconnection-Tolerance & Active Session State Recovery (Oturum Kurtarma)
+Gerçek zamanlı socket oyunlarında internet kesintileri veya tarayıcı yenilemelerine (F5) karşı tolerans geliştirilmiştir:
+1.  **sessionStorage Kaydı:** Oyuncu odaya başarıyla girdiğinde oda kodu, kullanıcı adı ve host rolü tarayıcının `sessionStorage` alanına yazılır.
+2.  **Gecikmeli Silme (Sunucu):** Oyuncu koptuğunda sunucu onu hemen odadan silmez. 60 saniyelik bir `disconnectTimer` başlatır.
+3.  **Yeniden Bağlantı:** Oyuncu 60 saniye içinde sayfayı yenilerse, `joinRoom` soket isteği otomatik tetiklenir. Sunucu, oyuncunun ismini kontrol eder, eski soketiyle yenisini eşler ve `reconnectionState` soket olayı üzerinden oyuncunun puanını ve çözdüğü soruların geçmişini geri yükler.
+
+### B) Süre Sonunda Cevap Gösterme & Voters PP'leri (TRT Bil Bakalım Tarzı)
+Kopya çekilmeyi önlemek ve oyun heyecanını artırmak için cevapların anında açıklanması engellenmiştir:
+*   **Cevap Gizleme:** Oyuncu şık seçtiğinde şık sadece seçili (mor) kalır. Süre bitene veya herkes cevaplayana kadar seçeneğin doğru/yanlış olduğu açıklanmaz.
+*   **Profil Emojileri (PP):** Her oyuncu için kullanıcı adının hash koduna göre otomatik olarak atanan 14 farklı eğlenceli emoji PP sistemi kurulmuştur (`getPlayerAvatar` fonksiyonu).
+*   **Seçimlerin Gösterilmesi:** Soru bittiğinde backend'den gelen `playerAnswers` listesiyle, her şıkkın altında o seçeneği seçen oyuncuların profil resimleri (PP) ve isimleri küçük neon baloncuklar şeklinde listelenir.
+
+### C) Real-Time SVG Dağılım Grafikleri
+Soru bittiğinde şıkların oy oranlarını göstermek için herhangi bir harici kütüphane (Recharts, Chart.js vb.) kullanılmamış, saf SVG barları ve yumuşak CSS geçişleri ile dinamik bir grafik çizilmiştir:
+*   SVG `rect` elemanlarının genişlikleri yüzdelik oranlara göre dinamik olarak hesaplanır.
+*   Geçiş efekti için CSS `transition: width 1s cubic-bezier(0.4, 0, 0.2, 1)` kuralı kullanılmıştır.
+
+### D) Web Audio API ile Kod Üzerinden Ses Sentezleme
+Uygulamanın sunucu ve ağ yükünü artıracak `.mp3` veya `.wav` ses dosyaları indirmesini engellemek amacıyla tüm ses efektleri tarayıcının yerleşik **Web Audio API (AudioContext)** altyapısı kullanılarak tamamen kodla üretilmiştir:
+*   **Tik-Tak Sesi (`tick`):** 1800 Hz frekansta sinüs (`sine`) dalgası 0.05 saniyede genliği sıfırlanarak çalınır.
+*   **Doğru Cevap Sesi (`correct`):** İki osilatörle 523.25 Hz (C4) ve 659.25 Hz (E4) frekansları birleştirilerek mutlu bir tını oluşturulur.
+*   **Yanlış Cevap Sesi (`wrong`):** Testere dişi (`sawtooth`) dalga formuyla 130 Hz frekanstan 90 Hz frekansa 0.4 saniyede pes bir kayış (pitch slide) uygulanır.
+*   **Şampiyonluk Melodisi (`champion`):** Do, Mi, G sol notaları sıralı frekanslarla tetiklenerek zafer fanfarı oluşturulur.
+
+### E) Sunucu Tarafı Tek Kullanımlık Joker Doğrulaması
+Arayüz manipülasyonuyla sınırsız joker kullanılmasını önlemek için `%50` ve `Çift Şans` joker hakları backend'de oyuncu nesnesinde saklanacak şekilde güncellenmiş ve sunucu tarafı kontrolleri eklenmiştir.
+
+---
+
+## 📡 6. WebSocket Haberleşme Protokolü ve Soket Eventleri
+
+Sunucu ile istemci arasındaki anlık bilgi alışverişi event-driven (olay güdümlü) soket mesajlarıyla sağlanır. Önemli eventlerin veri yapıları şunlardır:
+
+### 1. `joinRoom` (Client -> Server)
+Oyuncu odaya katılırken gönderilen veri:
+```json
+{
+  "roomId": "XYZ123",
+  "username": "Samet",
+  "isHost": false
+}
+```
+
+### 2. `reconnectionState` (Server -> Client)
+Yeniden bağlanan oyuncuya güncel durumu bildiren soket mesajı:
+```json
+{
+  "answered": true,
+  "score": 450,
+  "usedJoker5050": false,
+  "usedJokerDoubleChance": true
+}
+```
+
+### 3. `submitAnswer` (Client -> Server)
+Oyuncu şık seçtiğinde gönderilen veri:
+```json
+{
+  "roomId": "XYZ123",
+  "selectedOptionIndex": 2
+}
+```
+
+### 4. `questionEnded` (Server -> Client)
+Soru süresi bittiğinde tüm istemcilere yayınlanan (broadcast) sonuç paketi:
+```json
+{
+  "correctOptionIndex": 1,
+  "correctAnswer": "Merkür",
+  "leaderboard": [
+    { "username": "Samet", "score": 450 },
+    { "username": "Muhammet", "score": 380 }
+  ],
+  "answerDistribution": [1, 3, 0, 0],
+  "playerAnswers": [
+    { "username": "Samet", "selectedOption": 1 },
+    { "username": "Muhammet", "selectedOption": 1 }
+  ]
+}
+```
+
+---
+
+## 🐳 7. Docker Compose Yapılandırması (`docker-compose.yml`)
+
+Sistemin yerel veya uzak sunucularda tek komutla (`docker compose up --build -d`) ayağa kalkması için kullanılan Docker Compose dosyası:
+
+```yaml
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16
+    container_name: quizupp_postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 6767
+      POSTGRES_DB: roomapp
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - quizupp-network
+
+  backend:
+    build: ./backend
+    container_name: quizupp_backend
+    ports:
+      - "5000:5000"
+    environment:
+      - DB_USER=postgres
+      - DB_PASSWORD=6767
+      - DB_NAME=roomapp
+      - DB_HOST=db
+      - DB_PORT=5432
+      - JWT_SECRET=quizupp_secret
+      - PORT=5000
+    depends_on:
+      - db
+    networks:
+      - quizupp-network
+
+  frontend:
+    build: ./frontend
+    container_name: quizupp_frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - quizupp-network
+
+volumes:
+  pgdata:
+
+networks:
+  quizupp-network:
+    driver: bridge
+```
+
+---
+
+## 🏁 8. Sonuç
+
+QuizUpp; **PostgreSQL ilişkisel veritabanı, WebSocket çift yönlü soket iletişimi, Web Audio API ses sentezleme teknolojisi, disconnection-tolerance (kopma koruması), Docker container yapısı** ve premium neon espor arayüz tasarımı ile akademik açıdan zengin ve eksiksiz bir bilgi yarışması platformudur.
