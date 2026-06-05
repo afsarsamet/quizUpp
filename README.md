@@ -1,208 +1,89 @@
-# quizUpp 
+# 🎮 QuizUpp - Gerçek Zamanlı Espor Temalı Bilgi Yarışması Platformu 🚀
 
-quizUpp, kullanıcıların kendi quizlerini oluşturup arkadaşlarıyla gerçek zamanlı olarak oynayabildiği canlı quiz uygulamasıdır. Kullanıcılar kayıt olup quiz oluşturabilir, oluşturdukları quizleri daha sonra tekrar kullanabilir ve oda kodu paylaşarak arkadaşlarını oyuna davet edebilir.
+QuizUpp; kullanıcıların kendi bilgi yarışmalarını (quiz) oluşturabildiği, arkadaşlarıyla oda kodu paylaşarak veya canlı lobilere katılarak gerçek zamanlı yarışabildiği, espor temalı neon tasarıma sahip modern bir web uygulamasıdır.
 
-Oyuncular kayıt olmadan sadece oda kodu ve kullanıcı adı girerek oyuna katılabilir. Host ise quiz oluşturur, odayı açar ve oyunu başlatır. Sorular süreli şekilde gelir, oyuncular cevap verir ve doğru cevaba göre puan kazanır.
-
----
-
-## İçindekiler
-
-- [Proje Hakkında](#proje-hakkında)
-- [Öne Çıkan Özellikler](#öne-çıkan-özellikler)
-- [Ekran Görüntüleri](#ekran-görüntüleri)
-- [Kullanılan Teknolojiler](#kullanılan-teknolojiler)
-
+Detaylı teknik, mimari ve akademik rapor için [PROJE_DOKUMANTASYONU.md](PROJE_DOKUMANTASYONU.md) dosyasını inceleyebilirsiniz.
 
 ---
 
-## Proje Hakkında
+## 📸 Ekran Görüntüleri ve Arayüz Tasarımı
 
-QuizUpp, Kahoot benzeri bir quiz deneyimi sunmayı amaçlayan full-stack bir web uygulamasıdır. Uygulamanın temel amacı, kullanıcıların kolayca quiz hazırlayıp arkadaşlarıyla canlı olarak oynayabilmesidir.
+### 1. Ana Sayfa & Canlı Lobi Arama
+Kullanıcılar bekleme odasında olan canlı oyunları görerek anında "Hemen Katıl ve Yarış" butonuyla lobilere giriş yapabilir. Sayfanın altında PostgreSQL veritabanından beslenen haftalık en iyi 3 oyuncunun yer aldığı **Haftalık Liderlik Kürsüsü (Podium)** bulunur.
 
-Projede iki temel kullanıcı tipi vardır:
+<img width="1879" height="786" alt="image" src="https://github.com/user-attachments/assets/3697e1df-50fb-4dae-a6e7-c6a530c43152" />
 
-1. **Host**
-   - Kayıt olur veya giriş yapar.
-   - Quiz oluşturur.
-   - Quiz için soru süresi belirler.
-   - Oda kodu oluşturur.
-   - Oyuncuların katılmasını bekler.
-   - Oyunu başlatır.
+### 2. Canlı Oyun Ekranı Grid Düzeni
+Oyun ekranı masaüstü cihazlar için iki kolonlu grid yapısındadır. Sol tarafta soru metni, şıklar, joker alanları ve canlı SVG oy dağılım grafikleri yer alırken; sağ sütunda anlık oyuncu sıralaması ve emoji paneli bulunur.
 
-2. **Oyuncu**
-   - Kayıt olmak zorunda değildir.
-   - Oda kodu ve kullanıcı adı ile oyuna katılır.
-   - Süre bitmeden cevap verir.
-   - Doğru cevaplara göre puan kazanır.
+<img width="1049" height="864" alt="Ekran görüntüsü 2026-06-05 155747" src="https://github.com/user-attachments/assets/6a2cebcb-5659-4891-979e-e7372e437bb6" />
 
-Bu yapı sayesinde uygulama hem basit bir kullanıcı deneyimi sunar hem de gerçek zamanlı oyun mantığını destekler.
+### 3. Süre Sonu Seçimler & Profil Emojileri (Voters PP)
+Soru süresi tamamlandığında doğru şık yeşil neon, yanlış işaretlenen şık kırmızı neon gradyanı ile yanıp shake (titreme) animasyonu yapar. Şıkların altında, o seçeneği seçen oyuncuların profil resimleri (emoji avatarları) ve isimleri baloncuk halinde belirir.
 
----
+<img width="493" height="720" alt="Ekran görüntüsü 2026-06-05 160522" src="https://github.com/user-attachments/assets/ed7196e3-f04f-4dae-a6e7-c6a530c43152" />
 
-## Öne Çıkan Özellikler
+### 4. Canlı SVG Dağılım Grafiği
+Süre bitimiyle birlikte oyuncuların hangi seçeneği ne kadar işaretlediğini gösteren animasyonlu neon SVG barları saf CSS transition geçişleriyle ekrana yansır.
 
-- Kullanıcı kayıt sistemi
-- Kullanıcı giriş sistemi
-- JWT tabanlı kimlik doğrulama
-- Şifrelerin bcrypt ile hashlenmesi
-- Quiz oluşturma
-- Quizleri PostgreSQL veritabanına kaydetme
-- Kayıtlı quizleri listeleme
-- Kayıtlı quizlerden tekrar oda açabilme
-- Oda kodu ile oyuna katılma
-- Kayıt olmadan oyuncu olarak oyuna girme
-- Host ve oyuncu rollerinin ayrılması
-- Host’un soru çözememesi
-- Gerçek zamanlı oyuncu listesi
-- Socket.io ile canlı oyun akışı
-- Süreli sorular
-- Süreye göre puanlama
-- Otomatik sonraki soruya geçiş
-- Oyun sonunda skor tablosu
-- Docker ile veritabanı, backend ve frontend çalıştırma desteği
-- Modern ve oyunsal arayüz tasarımı
+<img width="489" height="417" alt="Ekran görüntüsü 2026-06-05 160536" src="https://github.com/user-attachments/assets/1269a5e4-f1b8-41c8-8364-6775d7d75f90" />
+
+### 5. Sunucu Tarafı Joker Yönetimi
+Yarı Yarıya (%50) ve Çift Şans jokerleri sunucu tarafında doğrulanır ve tek kullanımlık olarak kısıtlanır. Kullanılan jokerler butonlarda "Kullanıldı" olarak pasifleşir.
+
+<img width="570" height="361" alt="Ekran görüntüsü 2026-06-05 155754" src="https://github.com/user-attachments/assets/9cfb1e8e-1e15-4230-8a6c-58fe4ffb405f" />
+
+### 6. Hazır Soru Şablonları & Lobi Kurulumu
+Backend'e statik olarak gömülü 12 farklı hazır kategoriden birini seçerek anında oda kurabilirsiniz. Hazır oyunlarda odayı kuran kişi (Host) soruları önceden bilmediği için oyuna oyuncu olarak dahil olabilir.
+
+<img width="1510" height="485" alt="image" src="https://github.com/user-attachments/assets/dc38392a-856f-463f-a446-b73d85adf230" />
+<img width="1715" height="865" alt="image" src="https://github.com/user-attachments/assets/ea8a2324-96a1-4e4d-a9f6-db08b3754c0e" />
 
 ---
 
-## Ekran Görüntüleri
+## ⚡ Öne Çıkan Gelişmiş Teknik Özellikler
 
-
-### Ana Sayfa
-
-<img width="1600" height="898" alt="image" src="https://github.com/user-attachments/assets/c58f4286-8a99-40a0-903a-aec86497928f" />
-
-
-Ana sayfada kullanıcı oyuna katılabilir, giriş yapabilir veya kayıt olabilir. Giriş yapan kullanıcı quiz oluşturabilir ve kayıtlı quizlerine ulaşabilir.
+*   **Disconnection-Tolerance (Oturum Kurtarma):** Tarayıcı yenilense ya da bağlantı anlık kopsa dahi, oyuncu 60 saniye içinde odaya döndüğünde eski soketi yenisiyle eşleşir; skoru, çözdüğü sorular ve kalan jokerleri korunur.
+*   **Web Audio API Ses Sentezleme:** Hiçbir harici `.mp3` veya ses dosyası kullanılmadan; tik-tak, doğru, yanlış, roket bonusu ve şampiyonluk zafer melodileri tarayıcı osilatörleriyle kod üzerinden sentezlenir.
+*   **Hız Bonusu Puanlama Sistemi:** Doğru cevabı veren ilk oyuncu $+100$ hız bonusu puanı kazanır.
+*   **Sunucu Tarafı Joker Kontrolü:** Jokerlerin arayüz manipülasyonu ile sınırsızca kullanılmasını engellemek amacıyla backend tarafında yetkilendirme ve tek kullanımlık kontrol mekanizması kurulmuştur.
+*   **Kullanıcı Adına Duyarlı Avatar Atama:** Oyuncuların profil resimleri, kullanıcı adı karakterlerinin ASCII toplamı üzerinden modül alınarak 14 farklı emoji arasından otomatik belirlenir.
 
 ---
 
-### Kayıt Ol Sayfası
+## 🐳 Docker ile Kurulum ve Çalıştırma
 
-<img width="1600" height="999" alt="image" src="https://github.com/user-attachments/assets/467fab61-2310-4498-9b7b-1d2892ae09d8" />
+Uygulamayı veritabanı (PostgreSQL), backend ve frontend servisleriyle birlikte tek bir komutla ayağa kaldırabilirsiniz:
 
+```bash
+docker compose up --build -d
+```
 
-Kullanıcılar kullanıcı adı, email ve şifre bilgileriyle kayıt olabilir. Kayıt sırasında şifre hashlenerek veritabanına kaydedilir.
-
----
-
-### Giriş Yap Sayfası
-
-<img width="1600" height="999" alt="image" src="https://github.com/user-attachments/assets/a436f691-c317-4ab4-a923-c0f687b68e9e" />
-
-
-Kayıtlı kullanıcılar email ve şifre ile giriş yapabilir. Giriş başarılı olduğunda JWT token localStorage içerisine kaydedilir.
+Uygulama başarıyla çalıştığında:
+*   **Frontend (React App):** [http://localhost:3000](http://localhost:3000)
+*   **Backend (API Server):** [http://localhost:5000](http://localhost:5000)
+*   **Database (PostgreSQL):** `localhost:5432` portu üzerinden erişime açılacaktır.
 
 ---
 
-### Quiz Oluşturma Sayfası
+## 🛠️ Yerel (Local) Geliştirme Ortamı Kurulumu
 
-<img width="1600" height="999" alt="image" src="https://github.com/user-attachments/assets/176132fe-9f2a-4bd4-861c-2cec5a912072" />
+Eğer Docker kullanmadan çalıştırmak isterseniz:
 
+### 1. Veritabanı Kurulumu
+Yerel PostgreSQL sunucunuzda `roomapp` adında bir veritabanı oluşturun ve backend klasöründeki `.env` dosyasını kendi veritabanı bilgilerinize göre düzenleyin.
 
-Host, quiz başlığı belirler, soru süresi seçer ve sorularını oluşturur. Her soru için 4 seçenek ve doğru cevap belirlenir.
+### 2. Backend Sunucusunu Başlatma
+```bash
+cd backend
+npm install
+npm start
+```
 
----
-
-### Bekleme Odası
-
-<img width="1600" height="999" alt="image" src="https://github.com/user-attachments/assets/86827aac-d7ea-448b-8191-5bc1a8032057" />
-
-
-Quiz oluşturulduktan sonra host için bir oda kodu oluşturulur. Oyuncular bu kodla oyuna katılır. Host oyuncuların gelmesini bekleyebilir ve oyun hazır olduğunda başlatabilir.
-
----
-
-### Oyuna Katılma Sayfası
-
-<img width="1600" height="999" alt="image" src="https://github.com/user-attachments/assets/80f06e44-a934-4efb-94b6-e57386f26bda" />
-
-
-Oyuncular kayıt olmadan oda kodu ve kullanıcı adı girerek oyuna katılabilir.
-
----
-
-### Oyun Ekranı
-
-<img width="1600" height="999" alt="image" src="https://github.com/user-attachments/assets/511399f4-a065-429d-9abd-2379ea48ad24" />
-
-
-Sorular süreli olarak ekrana gelir. Oyuncular seçeneklerden birini seçip cevap gönderir. Host soru çözmez, sadece oyunu izler ve yönetir.
-
----
-
-### Skor Tablosu
-
-<img width="794" height="446" alt="image" src="https://github.com/user-attachments/assets/c338302f-454d-487c-90d1-8d5e0d22d17d" />
-
-
-Oyun sonunda oyuncuların skorları sıralı şekilde gösterilir.
-
----
-
-### Quizlerim Sayfası
-
-<img width="795" height="434" alt="image" src="https://github.com/user-attachments/assets/05a04466-023e-4fac-9ab8-8c7728d75456" />
-
-
-Giriş yapan kullanıcı daha önce oluşturduğu quizleri görebilir ve kayıtlı quizlerden yeni oyun odası açabilir.
-
----
-
-## Kullanılan Teknolojiler
-
-### Frontend
-
-- React
-- React Router DOM
-- Socket.io Client
-- CSS
-
-### Backend
-
-- Node.js
-- Express.js
-- Socket.io
-- PostgreSQL
-- pg
-- bcryptjs
-- jsonwebtoken
-- dotenv
-- cors
-
-### DevOps / Ortam
-
-- Docker
-- Docker Compose
-- PostgreSQL Docker Image
-
----
-
-## Proje Yapısı
-
-```txt
-quizUpp/
-│
-├── backend/
-│   ├── Dockerfile
-│   ├── package.json
-│   ├── server.js
-│   └── .env
-│
-├── frontend/
-│   ├── Dockerfile
-│   ├── package.json
-│   └── src/
-│       ├── App.js
-│       ├── App.css
-│       └── pages/
-│           ├── Home.js
-│           ├── Login.js
-│           ├── Register.js
-│           ├── Host.js
-│           ├── Join.js
-│           ├── Game.js
-│           └── MyQuizzes.js
-│
-├── docker-compose.yml
-└── README.md
+### 3. Frontend İstemcisini Başlatma
+```bash
+cd frontend
+npm install
+npm start
+```
+İstemci otomatik olarak [http://localhost:3000](http://localhost:3000) adresinde açılacaktır.
