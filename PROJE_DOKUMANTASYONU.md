@@ -30,6 +30,17 @@ Projenin ilk halindeki sıkışık ve standart görünümler giderilerek, koyu n
 ### A) Hizalanmış ve Düzenli Ana Sayfa (Landing Page)
 Ana sayfadaki tüm kartların ve bileşenlerin yana doğru orantısız genişlemesi engellenerek dikey eksende dengeli bir flex yapısına kavuşturulmuştur. Hazır kategoriler mor, zümrüt yeşili, turkuaz ve turuncu neon kartlarla listelenmiştir.
 
+<img width="1510" height="485" alt="image" src="https://github.com/user-attachments/assets/dc38392a-856f-463f-a446-b73d85adf230" />
+<img width="1715" height="865" alt="image" src="https://github.com/user-attachments/assets/ea8a2324-96a1-4e4d-a9f6-db08b3754c0e" />
+Örnek konu başlıkları ve quiz oluşturma alanı,burada herkes istediği konuyu seçebilir hatta kendisi bile soru ekleyebilir.
+<img width="1084" height="519" alt="image" src="https://github.com/user-attachments/assets/612e4d6e-df14-4ed5-b6e3-5dcb065f2e86" />
+Canlı lobilere katılma deneyimi serverdaki tüm açık odaların göründüğü ve yarışmacıların kolaylıkla katıldığı alan.
+<img width="788" height="645" alt="image" src="https://github.com/user-attachments/assets/da3f663b-d76e-4752-bfa6-074eca7be920" />
+Güzel bir rekabet için oyun sıralaması o ana kadar o üyenin almış olduğu puanlar ile ilk 3 kişinin puanları ve isimlerinin gösterildiği alanımız.
+
+
+
+
 ![QuizUpp Ana Sayfa Mockup Arayüzü](docs/images/homepage.png)
 
 ### B) İki Kolonlu Canlı Oyun Ekranı
@@ -56,7 +67,7 @@ Gerçek zamanlı oyunlarda internet kesintileri veya tarayıcı yenilemelerine (
 *   Bağlantı koptuğunda sunucu oyuncuyu hemen silmez, 60 saniye boyunca "offline" etiketli bir timeout başlatır.
 *   Oyuncu 60 saniye içinde sayfayı yeniler veya geri dönerse sunucu eski soket kimliği ile yenisini eşler; oyuncunun puanını, çözdüğü soru geçmişini ve kalan jokerlerini koruyarak oyuna sorunsuz devam ettirir.
 
-### B) Süre Sonunda Cevap Gösterme & Voters PP'leri (TRT Bil Bakalım Tarzı)
+### B) Süre Sonunda Cevap Gösterme & Voters PP'leri
 *   **Cevap Gizliliği:** Kopya çekilmeyi önlemek amacıyla, bir oyuncu şık seçtiğinde sürenin bitimine kadar seçimin doğru/yanlış olduğu açıklanmaz.
 *   **Profil Resmi (PP) Emojileri:** Oyuncuların kullanıcı adlarının hash değerlerine göre otomatik atanan 14 farklı eğlenceli emoji PP sistemi kurulmuştur.
 *   **Kim Neyi Seçmiş?:** Soru bittiğinde backend'den gelen `playerAnswers` listesiyle, her şıkkın altında o seçeneği seçen oyuncuların profil resimleri (PP) ve isimleri küçük neon baloncuklar halinde dairesel şekilde listelenir.
@@ -76,10 +87,8 @@ Arayüz manipülasyonuyla sınırsız joker kullanılmasını önlemek için `%5
 
 ##  4. İçerik ve Konsept Güncellemeleri
 
-### A) TRT Bil Bakalım Marka Temizliği
-Uygulamada yer alan tüm "TRT Bil Bakalım" marka referansları temizlenerek, proje tamamen özgün bir **"QuizUpp"** markası ve konseptine dönüştürülmüştür.
 
-### B) Hazır Soru Paketleri ve Özgün Sorular
+### A) Hazır Soru Paketleri ve Özgün Sorular
 Her biri 20'şer adet özgün ve eğitici sorudan oluşan 6 yeni premium hazır konu şablonu (toplam 120 soru) backend'e statik şablon olarak gömülmüştür:
 1.  ** Gastronomi & Mutfak Sanatları**
 2.  ** Türk Söz ve Deyişleri**
@@ -88,7 +97,7 @@ Her biri 20'şer adet özgün ve eğitici sorudan oluşan 6 yeni premium hazır 
 5.  ** Hayvanlar Dünyası ve Doğa**
 6.  ** İslam Tarihi & Kültürü** 
 
-### C) Host Yetki Modifikasyonu
+### B) Host Yetki Modifikasyonu
 *   **Hazır Konu Şablonları:** Hazır şablonlarda odayı kuran kişi (host) cevapları önceden bilmediği için oyuncu listesine dahil edilerek soru çözebilir, joker kullanabilir ve yarışabilir.
 *   **Özel Hazırlanan Quizler:** Host kendi sorularını yazarak oda kurduğunda hileyi önlemek için oyuncu listesine eklenmez, sadece yönetici/izleyici olarak kalır.
 
